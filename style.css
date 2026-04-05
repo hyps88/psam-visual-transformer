@@ -4,43 +4,43 @@
     background-color: #0e1117;
 }
 
-/* --- RESTORED: PERFECT DROP ZONE [LOCKED] --- */
+/* --- THE PERFECT DROP ZONE (LOCKED) --- */
 [data-testid="stFileUploader"] {
     background-color: transparent !important;
     padding: 60px 20px !important;
     border-radius: 20px !important;
-    border: 2px dashed #333 !important;
+    border: 3px dashed #333 !important;
 }
-
-[data-testid="stFileUploader"]:hover { border-color: #f36e2e !important; }
-
 [data-testid="stFileUploaderDropzoneInstructions"] div {
-    font-size: 58px !important;
-    font-weight: 700 !important;
-    color: #eee !important;
-    text-align: center !important;
-    line-height: 1.1 !important;
+    font-size: 58px !important; font-weight: 700 !important;
+    color: #eee !important; text-align: center !important;
 }
 
-[data-testid="stFileUploader"] section {
-    background-color: transparent !important;
+/* --- THE CUSTOM SETTINGS FLEXBOX ENGINE --- */
+/* The expander inside the 'Custom Settings' container */
+[data-testid="stExpander"] div[role="region"] > div {
     display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
-
-/* Hide small metadata to keep it museum-clean */
-[data-testid="stFileUploaderDropzoneInstructions"] small {
-    display: none !important;
-}
-
-/* --- PREVIEW LAYOUT ENGINE --- */
-.preview-container {
-    display: flex !important;
-    gap: 40px !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 30px !important; /* Padding between image and controls */
+    justify-content: flex-start !important;
     align-items: flex-start !important;
-    margin-top: 20px;
+}
+
+/* The Image Container (Column 1) */
+.preview-image-box {
+    flex: 1 1 500px !important; /* Minimum width of 500px before wrapping */
+    max-width: 500px !important; /* Never exceeds 500px wide */
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+}
+
+/* The Controls Container (Column 2) */
+.preview-controls-box {
+    flex: 1 1 250px !important; /* Minimum width of 250px */
+    max-width: 350px !important; /* Control panel width */
+    margin-top: 10px;
 }
 
 /* --- FORMAT CARDS (LOCKED) --- */

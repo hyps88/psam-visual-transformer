@@ -4,60 +4,49 @@
     background-color: #0e1117;
 }
 
-/* --- THE PERFECT DROP ZONE (Locked) --- */
+/* --- THE PERFECT DROP ZONE (LOCKED) --- */
 [data-testid="stFileUploader"] {
     background-color: transparent !important;
     padding: 60px 20px !important;
     border-radius: 20px !important;
     border: 2px dashed #333 !important;
 }
-[data-testid="stFileUploader"]:hover { border-color: #f36e2e !important; }
-
 [data-testid="stFileUploaderDropzoneInstructions"] div {
-    font-size: 58px !important;
-    font-weight: 700 !important;
-    color: #eee !important;
-    text-align: center !important;
-    line-height: 1.1 !important;
+    font-size: 58px !important; font-weight: 700 !important;
+    color: #eee !important; text-align: center !important;
 }
 
-[data-testid="stFileUploader"] section {
-    background-color: transparent !important;
+/* --- THE CUSTOM SETTINGS FLEXBOX ENGINE --- */
+/* The expander inside the 'Custom Settings' container */
+[data-testid="stExpander"] div[role="region"] > div {
     display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 30px !important; /* Adding padding between image and controls */
+    justify-content: flex-start !important;
+    align-items: flex-start !important;
+}
+
+/* The Image Container (Column 1) */
+.preview-image-box {
+    flex: 1 1 500px !important; /* Minimum width of 500px before wrapping */
+    max-width: 500px !important; /* Never exceeds 500px wide */
+    display: flex !important;
     justify-content: center !important;
+    align-items: center !important;
 }
 
-/* --- REFINED HEADER: NO DIVIDER LINE --- */
-.cat-header-text {
-    font-size: 11px;
-    font-weight: 800;
-    color: #444;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    white-space: nowrap;
-    margin: 0 !important;
+/* The Controls Container (Column 2) */
+.preview-controls-box {
+    flex: 1 1 250px !important; /* Minimum width of 250px */
+    max-width: 350px !important; /* Standardized control panel width */
+    margin-top: 10px;
 }
 
-/* Maintain tight alignment between title and checkbox */
-[data-testid="column"]:has(.cat-header-text) {
-    min-width: fit-content !important;
-    flex: 0 0 auto !important;
-}
-
-/* --- THE 2-COLUMN CARDS --- */
-[data-testid="stVerticalBlockBorderWrapper"] {
-    background-color: #1a1c1e !important;
-    border-radius: 12px !important;
-    border: 1px solid #2b2b2b !important;
-    padding: 18px !important;
-    margin-bottom: 10px;
-}
-
-.card-label { font-size: 16px !important; font-weight: 700 !important; color: white !important; }
-.card-subline { font-size: 13px !important; color: #888 !important; margin-top: 4px; }
-
-/* Tabs & Buttons */
+/* --- FORMAT CARDS (LOCKED) --- */
+.cat-header-text { font-size: 11px; font-weight: 800; color: #444; letter-spacing: 3px; text-transform: uppercase; margin: 0; }
+[data-testid="stVerticalBlockBorderWrapper"] { background-color: #1a1c1e !important; border-radius: 12px; border: 1px solid #2b2b2b; padding: 18px !important; margin-bottom: 10px; }
+.card-label { font-size: 16px; font-weight: 700; color: white; }
+.card-subline { font-size: 13px; color: #888; margin-top: 4px; }
 .stTabs [aria-selected="true"] { color: #f36e2e !important; border-bottom: 2px solid #f36e2e !important; }
-.stButton>button { background-color: #f36e2e; color: white; border-radius: 8px; font-weight: bold; height: 3.5em; }
+.stButton>button { background-color: #f36e2e; color: white; border-radius: 8px; font-weight: bold; }

@@ -4,80 +4,72 @@
     background-color: #0e1117;
 }
 
-/* --- THE TRANSPARENT DROP ZONE --- */
+/* --- THE TRANSPARENT DROP ZONE (Unchanged) --- */
 [data-testid="stFileUploader"] {
-    background-color: transparent !important; /* No background */
+    background-color: transparent !important;
     padding: 60px 20px !important;
     border-radius: 20px !important;
     border: 2px dashed #333 !important;
 }
-
-[data-testid="stFileUploader"]:hover { border-color: #f36e2e !important; }
-
-/* The "Inside" Title: 58px as requested */
 [data-testid="stFileUploaderDropzoneInstructions"] div {
     font-size: 58px !important;
     font-weight: 700 !important;
     color: #eee !important;
     text-align: center !important;
-    line-height: 1.1 !important;
 }
 
-/* Ensure the internal section is also transparent */
-[data-testid="stFileUploader"] section {
-    background-color: transparent !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-}
-
-/* --- RESPONSIVE VERTICAL SECTIONS --- */
+/* --- RESPONSIVE GRID HELPERS --- */
 .cat-header {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 800;
-    color: #555;
-    letter-spacing: 4px;
-    margin-top: 60px !important;
-    margin-bottom: 30px !important;
+    color: #444;
+    letter-spacing: 3px;
+    margin-top: 50px !important;
+    margin-bottom: 20px !important;
     text-transform: uppercase;
     border-bottom: 1px solid #222;
-    padding-bottom: 10px;
+    padding-bottom: 8px;
 }
 
-/* --- THE FLEX CARD --- */
-.format-card {
-    background-color: #1a1c1e;
-    border-radius: 14px;
-    border: 1px solid #2b2b2b;
-    padding: 20px;
-    margin-bottom: 15px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between; /* Push checkbox to the right */
-    gap: 20px;
-    transition: 0.2s ease-in-out;
+/* --- THE CARD CONTAINER --- */
+/* Target the Streamlit container with border=True */
+[data-testid="stElementContainer"] > div:has(div.card-internal) {
+    background-color: #1a1c1e !important;
+    border-radius: 12px !important;
+    border: 1px solid #2b2b2b !important;
+    padding: 15px !important;
+    transition: 0.2s ease;
 }
 
-.format-card:hover { border-color: #444; }
-
-.card-left {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
-
-.format-label {
-    font-size: 18px !important;
+/* Internal Card Text Styling */
+.card-label {
+    font-size: 16px !important;
     font-weight: 700 !important;
-    color: white;
+    color: white !important;
+    margin-bottom: 4px;
 }
 
-.format-subline {
-    font-size: 14px !important; 
-    color: #888;
-    margin-top: 4px;
+.card-subline {
+    font-size: 13px !important;
+    color: #888 !important;
     font-weight: 500;
 }
 
-/* Discreet Checkbox Styling */
-.stCheckbox { margin-bottom: 0 !important; }
+/* Hide the native checkbox label to keep it clean */
+.stCheckbox label {
+    display: none !important;
+}
+
+/* Responsive Column Tweaks */
+@media (max-width: 1200px) {
+    [data-testid="column"] {
+        flex: 1 1 45% !important; /* 2 columns */
+        min-width: 45% !important;
+    }
+}
+@media (max-width: 768px) {
+    [data-testid="column"] {
+        flex: 1 1 100% !important; /* 1 column */
+        min-width: 100% !important;
+    }
+}

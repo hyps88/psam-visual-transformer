@@ -9,38 +9,30 @@ if 'specs' not in st.session_state:
     if os.path.exists("transformer_specs.json"):
         with open("transformer_specs.json", "r") as f:
             st.session_state.specs = json.load(f).get('formats', [])
-    else: st.session_state.specs = []
+    else:
+        st.session_state.specs = []
 
 if 'proj_name' not in st.session_state:
     st.session_state.proj_name = "PSAM_Export"
 
-# --- 2. LOGIC: SECTION TOGGLE ---
-def toggle_section(category_name):
-    master_state = st.session_state[f"master_{category_name}"]
-    for spec in st.session_state.specs:
-        if spec.get('category') == category_name:
-            st.session_state[f"run_{spec['label']}"] = master_state
+# --- 2. HELPERS ---
+def calculate_ratio(w, h):
+    gcd = math.gcd(w, h)
+    return f"{w//gcd}:{h//gcd}"
 
-# --- 3. THEME & STORAGE ---
+def save_specs_to_disk():
+    with open("transformer_specs.json", "w") as f:
+        json.dump({"formats": st.session_state.specs}, f, indent=4)
+
 def load_css(file_name):
     if os.path.exists(file_name):
         with open(file_name) as f:
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
-load_css('style.css')
-
-def save_specs_to_disk():
-    """ Persistent local save """
-    with open("transformer_specs.json", "w") as f:
-        json.dump({"formats": st.session_state.specs}, f, indent=4)
-
-# --- 4. HELPERS ---
-def calculate_ratio(w, h):
-    gcd = math.gcd(w, h); return f"{w//gcd}:{h//gcd}"
-
 def get_svg_rect(ratio_str):
     try:
-        r_w, r_h = map(int, ratio_str.split(":")); max_d = 35
+        r_w, r_h = map(int, ratio_str.split(":"))
+        max_d = 35
         w, h = (max_d, int(max_d*(r_h/r_w))) if r_w > r_h else (int(max_d*(r_w/r_h)), max_d)
         return f'<svg width="45" height="45"><rect x="{(45-w)/2}" y="{(45-h)/2}" width="{w}" height="{h}" fill="none" stroke="#f36e2e" stroke-width="2.5"/></svg>'
     except: return ""
@@ -48,7 +40,15 @@ def get_svg_rect(ratio_str):
 def sanitize(name):
     return re.sub(r'[^a-zA-Z0-9]', '_', name)
 
-# --- 5. INTERFACE ---
+def toggle_section(category_name):
+    master_state = st.session_state[f"master_{category_name}"]
+    for spec in st.session_state.specs:
+        if spec.get('category') == category_name:
+            st.session_state[f"run_{spec['label']}"] = master_state
+
+load_css('style.css')
+
+# --- 3. INTERFACE ---
 tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
 with tab_run:
@@ -62,14 +62,12 @@ with tab_run:
         for category in categories:
             cat_specs = [s for s in st.session_state.specs if s.get('category') == category]
             
-            # HEADER: Removed Divider Line
             h_cols = st.columns([0.1, 0.05, 0.85]) 
             with h_cols[0]:
                 st.markdown(f'<p class="cat-header-text" style="padding-top: 5px;">{category}</p>', unsafe_allow_html=True)
             with h_cols[1]:
                 st.checkbox("", value=True, key=f"master_{category}", on_change=toggle_section, args=(category,), label_visibility="collapsed")
             
-            # 2-COLUMN GRID
             for i in range(0, len(cat_specs), 2):
                 row_specs = cat_specs[i:i+2]
                 grid_cols = st.columns(2)
@@ -96,35 +94,71 @@ with tab_run:
                         base_n = sanitize(os.path.splitext(up_file.name)[0])
                         for spec in selected_formats:
                             res = ImageOps.fit(img, (spec['width'], spec['height']), Image.Resampling.LANCZOS)
-                            f_name = f"PSAM_{sanitize(spec['label'])}.{spec.get('ext', 'webp').lower()}"
+                            f_ext = spec.get('ext', 'WebP').upper()
+                            f_name = f"PSAM_{sanitize(spec['label'])}.{f_ext.lower()}"
                             img_io = io.BytesIO()
-                            res.save(img_io, format=spec.get('ext', 'WebP').upper(), quality=spec.get('quality', 85))
+                            res.save(img_io, format=f_ext, quality=spec.get('quality', 85))
                             zip_file.writestr(f"{base_n}/{f_name}", img_io.getvalue())
-                st.success(f"Generated {len(uploaded_files)} images."); st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
+                st.success(f"Generated {len(uploaded_files)} images.")
+                st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
 
 with tab_fmt:
     st.write("### Museum Standards Library")
     for idx, spec in enumerate(st.session_state.specs):
         with st.expander(f"{spec['category']}: {spec['label']}"):
             l = st.text_input("Label", spec['label'], key=f"edit_l_{idx}")
-            c1, c2 = st.columns(2); w = c1.number_input("Width", value=int(spec['width']), key=f"w_{idx}"); h = c2.number_input("Height", value=int(spec['height']), key=f"h_{idx}")
-            if st.button("Save Changes", key=f"upd_{idx}"):
-                st.session_state.specs[idx].update({"label": l, "width": int(w), "height": int(h), "ratio": calculate_ratio(int(w), int(h))}); save_specs_to_disk(); st.rerun()
-            if st.button("Remove Format", key=f"del_{idx}"): st.session_state.specs.pop(idx); save_specs_to_disk(); st.rerun()
+            
+            c1, c2 = st.columns(2)
+            w = c1.number_input("Width", value=int(spec['width']), key=f"w_{idx}")
+            h = c2.number_input("Height", value=int(spec['height']), key=f"h_{idx}")
+            
+            # Added missing compression settings for Edit mode
+            c3, c4 = st.columns(2)
+            current_ext_idx = 0 if spec.get('ext', 'WebP') == 'WebP' else 1
+            e = c3.selectbox("File Type", ["WebP", "JPEG"], index=current_ext_idx, key=f"e_{idx}")
+            q = c4.slider("Quality", 10, 100, spec.get('quality', 85), key=f"q_{idx}")
+            
+            b1, b2 = st.columns([1, 4])
+            if b1.button("Save Changes", key=f"upd_{idx}"):
+                st.session_state.specs[idx].update({
+                    "label": l, 
+                    "width": int(w), 
+                    "height": int(h), 
+                    "ext": e,
+                    "quality": q,
+                    "ratio": calculate_ratio(int(w), int(h))
+                })
+                save_specs_to_disk(); st.rerun()
+            if b2.button("Remove Format", key=f"del_{idx}"):
+                st.session_state.specs.pop(idx)
+                save_specs_to_disk(); st.rerun()
     
     st.divider()
     with st.form("new_standard"):
         st.write("#### Add New Permanent Format")
         n_cat = st.text_input("Category (e.g. SOCIAL, PRINT, WEB)", value="SOCIAL")
-        nc1, nc2, nc3 = st.columns(3); n_lab = nc1.text_input("Format Name"); n_ext = nc2.selectbox("File Type", ["WebP", "JPEG"]); n_q = nc3.slider("Quality", 10, 100, 85)
-        nc4, nc5 = st.columns(2); n_w = nc4.number_input("Width", 1080); n_h = nc5.number_input("Height", 1080)
+        nc1, nc2, nc3 = st.columns(3)
+        n_lab = nc1.text_input("Format Name")
+        n_ext = nc2.selectbox("File Type", ["WebP", "JPEG"])
+        n_q = nc3.slider("Quality", 10, 100, 85)
+        nc4, nc5 = st.columns(2)
+        n_w = nc4.number_input("Width", 1080)
+        n_h = nc5.number_input("Height", 1080)
         if st.form_submit_button("ADD TO SYSTEM"):
-            st.session_state.specs.append({"category": n_cat.upper(), "label": n_lab, "width": int(n_w), "height": int(n_h), "ratio": calculate_ratio(int(n_w), int(n_h)), "ext": n_ext, "quality": n_q}); save_specs_to_disk(); st.rerun()
+            st.session_state.specs.append({
+                "category": n_cat.upper(), 
+                "label": n_lab, 
+                "width": int(n_w), 
+                "height": int(n_h), 
+                "ratio": calculate_ratio(int(n_w), int(n_h)), 
+                "ext": n_ext, 
+                "quality": n_q
+            })
+            save_specs_to_disk(); st.rerun()
 
 with tab_set:
     st.write("### Workflow Settings")
     st.session_state.proj_name = st.text_input("Project Export Name", value=st.session_state.proj_name)
     st.divider()
-    # RESTORED: JSON Library Export
     json_data = json.dumps({"formats": st.session_state.specs}, indent=4)
     st.download_button(label="💾 EXPORT LIBRARY (JSON)", data=json_data, file_name="psam_library_backup.json", mime="application/json")

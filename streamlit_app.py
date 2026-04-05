@@ -8,7 +8,7 @@ ACCENT_COLOR = "#f36e2e"
 st.set_page_config(page_title="Visual Transformer", layout="wide")
 
 def save_specs_to_disk():
-    """ Keeps your museum standards persistent across refreshes """
+    """ Keeps your museum standards persistent """
     with open("transformer_specs.json", "w") as f:
         json.dump({"formats": st.session_state.specs}, f, indent=4)
 
@@ -16,86 +16,79 @@ st.markdown(f"""
     <style>
     .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0e1117; }}
     
-    /* Category Headers: Tightened Spacing */
+    /* CATEGORY HEADERS: 20px Top Margin */
     .cat-header {{
         font-size: 11px;
         font-weight: 800;
         color: #444;
         letter-spacing: 3px;
         margin-top: 20px !important; 
-        margin-bottom: 20px !important;
+        margin-bottom: 25px !important;
         text-transform: uppercase;
     }}
 
-    /* Minimalist Top Menu */
-    .stTabs [data-baseweb="tab-list"] {{
-        gap: 40px;
-        border-bottom: 1px solid #222;
-        margin-bottom: 30px;
-    }}
-    .stTabs [data-baseweb="tab"] {{
-        height: 50px;
-        background-color: transparent !important;
-        border: none !important;
-        color: #555 !important;
-        font-weight: 700;
-        letter-spacing: 1px;
-    }}
-    .stTabs [aria-selected="true"] {{
-        color: {ACCENT_COLOR} !important;
-        border-bottom: 2px solid {ACCENT_COLOR} !important;
-    }}
-
-    /* Discreet Selection Tools */
-    .discreet-btn button {{
+    /* DISCREET SELECTION LINKS: Text-based only */
+    .discreet-link button {{
         background: transparent !important;
         border: none !important;
-        color: #555 !important;
-        font-size: 10px !important;
-        text-decoration: underline;
+        color: #666 !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        text-decoration: none !important;
         padding: 0 !important;
         height: auto !important;
+        margin-right: 25px !important;
     }}
-    .discreet-btn button:hover {{ color: white !important; }}
+    .discreet-link button:hover {{ color: {ACCENT_COLOR} !important; text-decoration: underline !important; }}
 
-    /* Simplified Drag & Drop Zone */
+    /* UNIFIED DRAG & DROP ZONE */
     [data-testid="stFileUploader"] {{
-        background-color: transparent;
-        padding: 40px 10px;
-        border-radius: 12px;
-        border: 1px dashed #666;
-    }}
-    
-    /* Hide the default Streamlit uploader icon and secondary text */
-    [data-testid="stFileUploader"] section {{
-        padding: 0 !important;
-    }}
-    [data-testid="stFileUploader"] label {{
-        display: block;
+        background-color: #16181a !important; /* Single background color */
+        padding: 80px 20px !important;
+        border-radius: 20px !important;
+        border: 3px dashed #333 !important; /* Thicker dashes */
+        transition: 0.3s ease;
         text-align: center;
-        font-size: 24px !important;
-        color: #888 !important;
-        font-weight: 400 !important;
-        margin-bottom: 0 !important;
+    }}
+    [data-testid="stFileUploader"]:hover {{ 
+        border-color: {ACCENT_COLOR} !important; /* Orange hover state */
     }}
     
-    /* Center and style the internal button */
-    [data-testid="stFileUploader"] button {{
+    /* TITLE STYLE: "Drag & Drop Images Here" */
+    [data-testid="stFileUploader"] label {{
+        font-size: 32px !important; 
+        color: #eee !important;
+        font-weight: 700 !important;
+        margin-bottom: 30px !important;
+        display: block !important;
+        text-align: center !important;
+    }}
+    
+    /* CENTER EVERYTHING IN UPLOADER */
+    [data-testid="stFileUploader"] section {{
+        background: transparent !important; /* Removes the second background box */
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }}
+    
+    /* STYLE THE BROWSE BUTTON */
+    [data-testid="stFileUploader"] section button {{
         background-color: #333 !important;
         color: white !important;
         border: none !important;
-        margin: 20px auto 0 auto !important;
-        display: block !important;
+        padding: 10px 25px !important;
+        margin-top: 10px !important;
     }}
 
-    /* Action Buttons */
-    .stButton>button {{
-        background-color: {ACCENT_COLOR};
-        color: white;
-        border-radius: 6px;
-        border: none;
-        font-weight: bold;
-    }}
+    /* TAB NAVIGATION */
+    .stTabs [data-baseweb="tab-list"] {{ gap: 40px; border-bottom: 1px solid #222; margin-bottom: 30px; }}
+    .stTabs [data-baseweb="tab"] {{ height: 50px; background-color: transparent !important; color: #555 !important; font-weight: 700; }}
+    .stTabs [aria-selected="true"] {{ color: {ACCENT_COLOR} !important; border-bottom: 2px solid {ACCENT_COLOR} !important; }}
+
+    /* GENERATE BUTTON */
+    .stButton>button {{ background-color: {ACCENT_COLOR}; color: white; border-radius: 8px; font-weight: bold; height: 3.5em; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -129,13 +122,13 @@ if 'proj_name' not in st.session_state:
 tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
 with tab_run:
-    # CLEAN DROP ZONE
-    uploaded_files = st.file_uploader("Drag & Drop Images Here", type=['jpg', 'png', 'webp'], accept_multiple_files=True, label_visibility="visible")
+    # RECTIFIED DROP ZONE: Single background, centered, title text
+    uploaded_files = st.file_uploader("Drag & Drop Images Here", type=['jpg', 'png', 'webp'], accept_multiple_files=True)
 
     if uploaded_files:
-        # Discreet Selection Tools
-        st.markdown('<div class="discreet-btn">', unsafe_allow_html=True)
-        t_col1, t_col2, _ = st.columns([0.8, 1, 8])
+        # DISCREET SELECTION LINKS: Text-based only
+        st.markdown('<div class="discreet-link">', unsafe_allow_html=True)
+        t_col1, t_col2, _ = st.columns([1, 1, 8])
         with t_col1:
             if st.button("SELECT ALL"): 
                 for s in st.session_state.specs: st.session_state[f"run_{s['label']}"] = True

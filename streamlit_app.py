@@ -14,6 +14,10 @@ if 'specs' not in st.session_state:
 if 'proj_name' not in st.session_state:
     st.session_state.proj_name = "PSAM_Export"
 
+# --- PER-IMAGE ALIGNMENT STATE ---
+if 'img_idx' not in st.session_state: st.session_state.img_idx = 0
+if 'align_map' not in st.session_state: st.session_state.align_map = {}
+
 # --- 2. HELPERS [LOCKED] ---
 def calculate_ratio(w, h):
     if not w or not h: return "1:1"
@@ -55,21 +59,23 @@ with tab_run:
     uploaded_files = st.file_uploader("Drag & Drop", type=['jpg', 'png', 'webp'], accept_multiple_files=True, label_visibility="collapsed")
 
     if uploaded_files:
-        st.write(" ")
+        # Safety check for index
+        if st.session_state.img_idx >= len(uploaded_files): st.session_state.img_idx = 0
         
-        # 3.1 CUSTOM SETTINGS TOGGLE
+        st.write(" ")
         cust_active = st.toggle("Custom Settings", value=False)
         selected_formats = []
-        final_cx, final_cy = 0.5, 0.5
 
         if cust_active:
             with st.container(border=True):
                 lock_ar = st.checkbox("Force Original Aspect Ratio & Size", value=False, key="lock_ar_check")
-                orig_img_ref = Image.open(uploaded_files[0])
+                
+                # Aspect Ratio Ref based on CURRENT image in navigator
+                cur_img_file = uploaded_files[st.session_state.img_idx]
+                orig_img_ref = Image.open(cur_img_file)
                 ow, oh = orig_img_ref.size
                 
                 c1, c2, c3, c4 = st.columns([2, 2, 2, 3])
-                
                 if lock_ar:
                     cust_w = c1.number_input("Width (Original)", value=ow, key="cust_w_orig")
                     cust_h = int(cust_w * (oh / ow))
@@ -81,32 +87,53 @@ with tab_run:
                 cust_ext = c3.selectbox("Format", ["WebP", "JPEG"], key="cust_ext")
                 cust_q = c4.slider("Export Quality (100 = Lossless)", 10, 100, 95, key="cust_q")
 
-                with st.expander("👁️ Preview & Alignment Controls", expanded=False):
+                with st.expander("👁️ Preview & Individual Alignment", expanded=True):
+                    # --- IMAGE NAVIGATOR ---
+                    n1, n2, n3 = st.columns([1, 3, 1])
+                    with n1:
+                        if st.button("← Previous", use_container_width=True):
+                            st.session_state.img_idx = (st.session_state.img_idx - 1) % len(uploaded_files)
+                            st.rerun()
+                    with n2:
+                        st.markdown(f"<center>Adjusting {st.session_state.img_idx + 1} of {len(uploaded_files)}: <br><b>{cur_img_file.name}</b></center>", unsafe_allow_html=True)
+                    with n3:
+                        if st.button("Next →", use_container_width=True):
+                            st.session_state.img_idx = (st.session_state.img_idx + 1) % len(uploaded_files)
+                            st.rerun()
+
+                    # Retrieve or Init Memory for this file
+                    saved_align = st.session_state.align_map.get(cur_img_file.name, {"x": 50, "y": 50})
+
                     aspect_val = cust_w / cust_h
                     sw, sh = (500, int(500/aspect_val)) if aspect_val > 1 else (int(500*aspect_val), 500)
                     
                     pcol_img, pcol_ctrl = st.columns([1, 1])
                     with pcol_ctrl:
-                        preset = st.radio("Quick Presets", ["Center", "Top", "Bottom", "Left", "Right", "Manual"], horizontal=True)
+                        st.write("**Alignment for this Image**")
+                        preset = st.radio("Quick Presets", ["Center", "Top", "Bottom", "Left", "Right", "Manual"], horizontal=True, key=f"pre_{cur_img_file.name}")
+                        
                         if preset == "Center": dx, dy = 50, 50
                         elif preset == "Top": dx, dy = 50, 0
                         elif preset == "Bottom": dx, dy = 50, 100
                         elif preset == "Left": dx, dy = 0, 50
                         elif preset == "Right": dx, dy = 100, 50
-                        else: dx, dy = 50, 50
-                        mx = st.slider("Left ← Alignment → Right", 0, 100, dx)
-                        my = st.slider("Top ← Alignment → Bottom", 0, 100, dy)
-                        final_cx, final_cy = mx / 100, my / 100
+                        else: dx, dy = saved_align["x"], saved_align["y"]
+
+                        mx = st.slider("Left ← Alignment → Right", 0, 100, dx, key=f"mx_{cur_img_file.name}")
+                        my = st.slider("Top ← Alignment → Bottom", 0, 100, dy, key=f"my_{cur_img_file.name}")
+                        
+                        # Save to memory
+                        st.session_state.align_map[cur_img_file.name] = {"x": mx, "y": my}
+                        f_cx, f_cy = mx / 100, my / 100
+
                     with pcol_img:
-                        prev_img = Image.open(uploaded_files[0]).convert("RGB")
-                        crop = ImageOps.fit(prev_img, (cust_w, cust_h), method=Image.Resampling.LANCZOS, centering=(final_cx, final_cy))
-                        st.image(crop, width=sw, caption=f"Preview ({calculate_ratio(cust_w, cust_h)})")
+                        crop = ImageOps.fit(orig_img_ref.convert("RGB"), (cust_w, cust_h), method=Image.Resampling.LANCZOS, centering=(f_cx, f_cy))
+                        st.image(crop, width=sw, caption=f"Individual Preview ({calculate_ratio(cust_w, cust_h)})")
             
-            selected_formats.append({"label": "Custom", "width": cust_w, "height": cust_h, "ext": cust_ext, "quality": cust_q, "cx": final_cx, "cy": final_cy})
+            selected_formats.append({"label": "Custom", "width": cust_w, "height": cust_h, "ext": cust_ext, "quality": cust_q})
 
         st.write(" ")
         show_templates = st.toggle("Templates", value=False)
-
         if show_templates:
             cats = sorted(list(set(s.get('category', 'OTHER') for s in st.session_state.specs)))
             for cat in cats:
@@ -130,13 +157,14 @@ with tab_run:
                                         selected_formats.append(spec)
 
         st.divider()
+        # ENHANCED BUTTON
         if st.button("GENERATE ALL ASSETS", use_container_width=True):
             if selected_formats:
                 zip_buffer = io.BytesIO()
                 total_steps = len(uploaded_files) * len(selected_formats)
                 current_step = 0
                 
-                # Progress Indicators
+                # Progress Bar colored via CSS
                 progress_bar = st.progress(0)
                 status_text = st.empty()
 
@@ -144,34 +172,34 @@ with tab_run:
                     for up in uploaded_files:
                         img = Image.open(up).convert("RGB")
                         bn = sanitize(os.path.splitext(up.name)[0])
+                        
+                        # Apply this image's specific memory
+                        align_data = st.session_state.align_map.get(up.name, {"x": 50, "y": 50})
+                        cx_final, cy_final = align_data["x"]/100, align_data["y"]/100
+
                         for sp in selected_formats:
-                            # Update Progress
                             current_step += 1
-                            progress_val = min(int((current_step / total_steps) * 100), 100)
-                            progress_bar.progress(progress_val)
+                            progress_bar.progress(min(int((current_step / total_steps) * 100), 100))
                             status_text.text(f"Processing: {bn} — {sp['label']}")
 
-                            cx_v, cy_v = sp.get('cx', 0.5), sp.get('cy', 0.5)
-                            res = ImageOps.fit(img, (sp['width'], sp['height']), method=Image.Resampling.LANCZOS, centering=(cx_v, cy_v))
+                            # Custom alignment for custom crops, Center (0.5) for templates
+                            t_cx = cx_final if sp['label'] == "Custom" else 0.5
+                            t_cy = cy_final if sp['label'] == "Custom" else 0.5
+
+                            res = ImageOps.fit(img, (sp['width'], sp['height']), method=Image.Resampling.LANCZOS, centering=(t_cx, t_cy))
                             ext_v = sp.get('ext', 'WebP').upper()
                             q_v = sp.get('quality', 95)
                             
                             fn = f"PSAM_{bn}_{sanitize(sp['label'])}_{sp['width']}x{sp['height']}.{ext_v.lower()}"
                             buf = io.BytesIO()
-                            
-                            # CORRECTED SAVING LOGIC
                             if ext_v == "JPEG":
-                                # Fixed subsampling TypeError (using integer 0 for 4:4:4)
                                 res.save(buf, format="JPEG", quality=q_v, subsampling=0 if q_v == 100 else 2, optimize=True)
                             else:
-                                # Memory-safe WebP Lossless (Method 4)
                                 res.save(buf, format="WEBP", quality=q_v, lossless=(q_v == 100), method=4)
-                            
                             zf.writestr(fn, buf.getvalue())
                 
                 status_text.text("Export Ready!")
-                st.success("Batch Generated successfully.")
-                st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
+                st.success("Batch Generated."); st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
 
 # --- TAB 2 & 3: FORMATS & SETTINGS [LOCKED] ---
 with tab_fmt:

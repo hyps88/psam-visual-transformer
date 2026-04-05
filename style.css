@@ -36,6 +36,11 @@
     align-items: center !important;
 }
 
+[data-testid="stImageContainer"] {
+    width: 100%;
+}
+
+
 /* The Controls Container (Column 2) */
 .preview-controls-box {
     flex: 1 1 250px !important; /* Minimum width of 250px */

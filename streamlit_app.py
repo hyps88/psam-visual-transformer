@@ -50,6 +50,7 @@ load_css('style.css')
 # --- 3. INTERFACE ---
 tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
+# --- TAB 1: TRANSFORMER ---
 with tab_run:
     uploaded_files = st.file_uploader("Drag & Drop", type=['jpg', 'png', 'webp'], accept_multiple_files=True, label_visibility="collapsed")
 
@@ -63,26 +64,29 @@ with tab_run:
 
         if cust_active:
             with st.container(border=True):
-                lock_ar = st.checkbox("Force Original Aspect Ratio", value=False)
+                # RESTORED & VISIBLE: Aspect Ratio Lock
+                lock_ar = st.checkbox("Force Original Aspect Ratio", value=False, key="lock_ar_check")
+                
                 c1, c2, c3, c4 = st.columns([2, 2, 2, 3])
                 cust_w = c1.number_input("Width", value=1080, key="cust_w")
                 
-                orig_img = Image.open(uploaded_files[0])
-                orig_w, orig_h = orig_img.size
+                # Aspect Ratio Logic based on FIRST image
+                orig_img_ref = Image.open(uploaded_files[0])
+                ow, oh = orig_img_ref.size
                 
                 if lock_ar:
-                    cust_h = int(cust_w * (orig_h / orig_w))
-                    c2.number_input("Height (Locked)", value=cust_h, disabled=True, key="cust_h_locked")
+                    cust_h = int(cust_w * (oh / ow))
+                    c2.number_input("Height (Locked)", value=cust_h, disabled=True, key="cust_h_disabled")
                 else:
-                    cust_h = c2.number_input("Height", value=1080, key="cust_h")
+                    cust_h = c2.number_input("Height", value=1080, key="cust_h_active")
                 
                 cust_ext = c3.selectbox("Format", ["WebP", "JPEG"], key="cust_ext")
-                # Quality 100 = Lossless
-                cust_q = c4.slider("Export Quality (100 = Lossless/Print)", 10, 100, 95, key="cust_q")
+                # 100% Quality now handles Lossless automatically
+                cust_q = c4.slider("Export Quality (100 = Lossless)", 10, 100, 95, key="cust_q")
 
                 with st.expander("👁️ Preview & Alignment Controls", expanded=False):
-                    aspect = cust_w / cust_h
-                    sw, sh = (500, int(500/aspect)) if aspect > 1 else (int(500*aspect), 500)
+                    aspect_val = cust_w / cust_h
+                    sw, sh = (500, int(500/aspect_val)) if aspect_val > 1 else (int(500*aspect_val), 500)
                     pcol_img, pcol_ctrl = st.columns([1, 1])
                     with pcol_ctrl:
                         preset = st.radio("Quick Presets", ["Center", "Top", "Bottom", "Left", "Right", "Manual"], horizontal=True)
@@ -103,6 +107,7 @@ with tab_run:
             selected_formats.append({"label": "Custom", "width": cust_w, "height": cust_h, "ext": cust_ext, "quality": cust_q, "cx": final_cx, "cy": final_cy})
 
         st.write(" ")
+        # RECTIFIED: Removed the redundant Lossless toggle here
         show_templates = st.toggle("Templates", value=False)
 
         if show_templates:
@@ -136,21 +141,19 @@ with tab_run:
                         img = Image.open(up).convert("RGB")
                         bn = sanitize(os.path.splitext(up.name)[0])
                         for sp in selected_formats:
-                            cx, cy = sp.get('cx', 0.5), sp.get('cy', 0.5)
-                            res = ImageOps.fit(img, (sp['width'], sp['height']), method=Image.Resampling.LANCZOS, centering=(cx, cy))
-                            ext = sp.get('ext', 'WebP').upper()
-                            q_val = sp.get('quality', 95)
+                            cx_val, cy_val = sp.get('cx', 0.5), sp.get('cy', 0.5)
+                            res = ImageOps.fit(img, (sp['width'], sp['height']), method=Image.Resampling.LANCZOS, centering=(cx_val, cy_val))
+                            ext_type = sp.get('ext', 'WebP').upper()
+                            q_lvl = sp.get('quality', 95)
                             
-                            fn = f"PSAM_{bn}_{sanitize(sp['label'])}_{sp['width']}x{sp['height']}.{ext.lower()}"
+                            fn = f"PSAM_{bn}_{sanitize(sp['label'])}_{sp['width']}x{sp['height']}.{ext_type.lower()}"
                             buf = io.BytesIO()
                             
-                            # INTEGRATED LOSSLESS LOGIC
-                            if ext == "JPEG":
-                                # 100 quality JPEG + subsampling=0 is the maximum possible fidelity
-                                res.save(buf, format="JPEG", quality=q_val, subsampling=0 if q_val == 100 else 'outer', optimize=True)
+                            # PILLOW OPTIMIZATION: 100 Quality = Maximum possible fidelity
+                            if ext_type == "JPEG":
+                                res.save(buf, format="JPEG", quality=q_lvl, subsampling=0 if q_lvl == 100 else 'outer', optimize=True)
                             else:
-                                # 100 quality WebP triggers True Lossless engine
-                                res.save(buf, format="WEBP", quality=q_val, lossless=(q_val == 100), method=6)
+                                res.save(buf, format="WEBP", quality=q_lvl, lossless=(q_lvl == 100), method=6)
                             zf.writestr(fn, buf.getvalue())
                 st.success("Batch Generated."); st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
 

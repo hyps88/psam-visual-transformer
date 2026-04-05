@@ -1,0 +1,79 @@
+/* Global Typography */
+.stApp {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+    background-color: #0e1117;
+}
+
+/* Category Headers */
+.cat-header {
+    font-size: 11px;
+    font-weight: 800;
+    color: #444;
+    letter-spacing: 3px;
+    margin-top: 20px !important; 
+    margin-bottom: 25px !important;
+    text-transform: uppercase;
+}
+
+/* The Unified Drop Zone */
+[data-testid="stFileUploader"] {
+    background-color: #16181a !important;
+    padding: 40px 20px !important;
+    border-radius: 15px !important;
+    border: 2px dashed #333 !important;
+    transition: 0.3s ease;
+}
+
+[data-testid="stFileUploader"]:hover {
+    border-color: #f36e2e !important;
+}
+
+/* Drop Zone Title (Helvetica) */
+[data-testid="stFileUploader"] label {
+    display: block !important;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+    font-size: 24px !important;
+    font-weight: 700 !important;
+    color: #eee !important;
+    text-align: center !important;
+    margin-bottom: 15px !important;
+    width: 100% !important;
+}
+
+/* Browse Button Styling */
+[data-testid="stFileUploader"] section button {
+    background-color: #222 !important;
+    color: #888 !important;
+    border: 1px solid #333 !important;
+    padding: 6px 15px !important;
+    border-radius: 4px !important;
+}
+
+/* Tab Navigation */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 40px;
+    border-bottom: 1px solid #222;
+    margin-bottom: 30px;
+}
+
+.stTabs [data-baseweb="tab"] {
+    height: 50px;
+    background-color: transparent !important;
+    color: #555 !important;
+    font-weight: 700;
+}
+
+.stTabs [aria-selected="true"] {
+    color: #f36e2e !important;
+    border-bottom: 2px solid #f36e2e !important;
+}
+
+/* Primary Action Button */
+.stButton>button {
+    background-color: #f36e2e;
+    color: white;
+    border-radius: 8px;
+    font-weight: bold;
+    height: 3.5em;
+    width: 100%;
+}

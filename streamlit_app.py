@@ -12,6 +12,17 @@ def save_specs_to_disk():
     with open("transformer_specs.json", "w") as f:
         json.dump({"formats": st.session_state.specs}, f, indent=4)
 
+# --- CALLBACKS: Safe state management ---
+def on_master_all():
+    if st.session_state.master_all:
+        for s in st.session_state.specs: st.session_state[f"run_{s['label']}"] = True
+        st.session_state.master_none = False
+
+def on_master_none():
+    if st.session_state.master_none:
+        for s in st.session_state.specs: st.session_state[f"run_{s['label']}"] = False
+        st.session_state.master_all = False
+
 st.markdown(f"""
     <style>
     .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0e1117; }}
@@ -26,21 +37,7 @@ st.markdown(f"""
         text-transform: uppercase;
     }}
 
-    /* DISCREET SELECTION LINKS: Tiny, grey, text-only */
-    .discreet-link button {{
-        background: transparent !important;
-        border: none !important;
-        color: #444 !important;
-        font-size: 10px !important;
-        font-weight: 500 !important;
-        text-decoration: none !important;
-        padding: 0 !important;
-        margin-right: 25px !important;
-        height: auto !important;
-    }}
-    .discreet-link button:hover {{ color: white !important; text-decoration: underline !important; }}
-
-    /* PERFECTED DROP ZONE: Untouched as requested */
+    /* DROP ZONE: Simplified & Functional */
     [data-testid="stFileUploader"] {{
         background-color: #16181a !important;
         padding: 30px 20px !important;
@@ -48,6 +45,7 @@ st.markdown(f"""
         border: 2px dashed #333 !important;
     }}
     [data-testid="stFileUploader"]:hover {{ border-color: {ACCENT_COLOR} !important; }}
+    
     [data-testid="stFileUploader"] label {{
         display: block !important;
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
@@ -58,20 +56,24 @@ st.markdown(f"""
         margin-bottom: 15px !important;
         width: 100% !important;
     }}
-    [data-testid="stFileUploader"] section {{ background: transparent !important; display: flex !important; flex-direction: column !important; align-items: center !important; }}
+
+    /* RECTIFY VISIBILITY: Ensure Browse/Files stay visible */
+    [data-testid="stFileUploader"] section {{ background: transparent !important; }}
     [data-testid="stFileUploaderDropzoneInstructions"] {{ display: none !important; }}
-    [data-testid="stFileUploader"] section button {{
-        background-color: #222 !important;
-        color: #888 !important;
-        border: 1px solid #333 !important;
-        padding: 6px 15px !important;
-        border-radius: 4px !important;
-        font-size: 12px !important;
+    
+    /* MASTER CHECKBOXES: Card style for selection tools */
+    .master-card {{
+        background-color: #1a1c1e;
+        padding: 10px 20px;
+        border-radius: 10px;
+        border: 1px solid #333;
+        margin-bottom: 10px;
     }}
 
     .stTabs [data-baseweb="tab-list"] {{ gap: 40px; border-bottom: 1px solid #222; margin-bottom: 30px; }}
     .stTabs [data-baseweb="tab"] {{ height: 50px; background-color: transparent !important; color: #555 !important; font-weight: 700; }}
     .stTabs [aria-selected="true"] {{ color: {ACCENT_COLOR} !important; border-bottom: 2px solid {ACCENT_COLOR} !important; }}
+    
     .stButton>button {{ background-color: {ACCENT_COLOR}; color: white; border-radius: 8px; font-weight: bold; height: 3.5em; }}
     </style>
 """, unsafe_allow_html=True)
@@ -106,15 +108,7 @@ if 'proj_name' not in st.session_state:
 tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
 with tab_run:
-    # 4.1 LOGIC: Handling Select All/None before widgets render
-    if st.session_state.get('trigger_select_all'):
-        for s in st.session_state.specs: st.session_state[f"run_{s['label']}"] = True
-        st.session_state.trigger_select_all = False
-    if st.session_state.get('trigger_select_none'):
-        for s in st.session_state.specs: st.session_state[f"run_{s['label']}"] = False
-        st.session_state.trigger_select_none = False
-
-    # 4.2 DROP ZONE
+    # 4.1 DROP ZONE
     uploaded_files = st.file_uploader("Drag & Drop Images Here", type=['jpg', 'png', 'webp'], accept_multiple_files=True)
 
     if uploaded_files:
@@ -132,26 +126,26 @@ with tab_run:
                         c_icon, c_check = st.columns([1, 4])
                         with c_icon: st.markdown(get_svg_rect(spec['ratio']), unsafe_allow_html=True)
                         with c_check:
-                            # Using session state to control checkboxes
-                            if st.checkbox(f"{spec['label']} ({spec['width']}x{spec['height']})", value=st.session_state.get(f"run_{spec['label']}", True), key=f"run_{spec['label']}"):
+                            # Direct key mapping for safety
+                            if st.checkbox(f"{spec['label']} ({spec['width']}x{spec['height']})", value=True, key=f"run_{spec['label']}"):
                                 selected_formats.append(spec)
                             st.markdown(f'<span style="color: #444; font-size: 10px;">{spec.get("ext", "WebP").upper()} @ {spec.get("quality", 85)}%</span>', unsafe_allow_html=True)
 
-        # 4.3 DISCREET SELECTION LINKS: At bottom, text-based
-        st.markdown('<div class="discreet-link">', unsafe_allow_html=True)
-        t_col1, t_col2, _ = st.columns([1, 1, 8])
-        with t_col1:
-            if st.button("SELECT ALL"): 
-                st.session_state.trigger_select_all = True
-                st.rerun()
-        with t_col2:
-            if st.button("SELECT NONE"): 
-                st.session_state.trigger_select_none = True
-                st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+        # 4.2 MASTER SELECTION: Checkboxes at bottom
+        st.divider()
+        st.write("### Bulk Selection")
+        sel_col1, sel_col2 = st.columns(2)
+        with sel_col1:
+            st.markdown('<div class="master-card">', unsafe_allow_html=True)
+            st.checkbox("SELECT ALL FORMATS", key="master_all", on_change=on_master_all)
+            st.markdown('</div>', unsafe_allow_html=True)
+        with sel_col2:
+            st.markdown('<div class="master-card">', unsafe_allow_html=True)
+            st.checkbox("DESELECT ALL FORMATS", key="master_none", on_change=on_master_none)
+            st.markdown('</div>', unsafe_allow_html=True)
 
         st.divider()
-        if st.button("GENERATE ASSETS", use_container_width=True):
+        if st.button("GENERATE ALL ASSETS", use_container_width=True):
             if selected_formats:
                 zip_buffer = io.BytesIO()
                 with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
@@ -160,9 +154,10 @@ with tab_run:
                         base_n = sanitize(os.path.splitext(up_file.name)[0])
                         for spec in selected_formats:
                             res = ImageOps.fit(img, (spec['width'], spec['height']), Image.Resampling.LANCZOS)
-                            f_name = f"PSAM_{sanitize(spec['label'])}.{spec.get('ext', 'webp').lower()}"
+                            f_ext = spec.get('ext', 'WebP').upper()
+                            f_name = f"PSAM_{sanitize(spec['label'])}.{f_ext.lower()}"
                             img_io = io.BytesIO()
-                            res.save(img_io, format=spec.get('ext', 'WebP').upper(), quality=spec.get('quality', 85))
+                            res.save(img_io, format=f_ext, quality=spec.get('quality', 85))
                             zip_file.writestr(f"{base_n}/{f_name}", img_io.getvalue())
                 
                 st.success(f"Generated {len(uploaded_files)} images.")

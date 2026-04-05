@@ -1,210 +1,177 @@
 import streamlit as st
 from PIL import Image, ImageOps
-import json, os, math, re, io, zipfile, base64
+import json, os, math, re, io, zipfile
 from datetime import datetime
 
-# --- CONFIG & STYLING ---
-ACCENT_COLOR = "#f36e2e"       # PSAM Orange
-SECONDARY_BORDER = "#444444"    # Muted Grey for unselected
-BG_CARD = "#1a1c1e"
-BG_ACTIVE = "#25282c"
+# --- 1. SETTINGS & THEME ---
+ACCENT_COLOR = "#f36e2e"
+st.set_page_config(page_title="PSAM Visual Transformer", page_icon="🖼️", layout="wide")
 
-st.set_page_config(page_title="Visual Transformer", page_icon="🖼️", layout="wide")
+st.markdown(f"""
+    <style>
+    .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }}
+    
+    /* Category Headers: Clean & Spacious */
+    .cat-header {{
+        font-size: 14px;
+        font-weight: 800;
+        color: #666;
+        letter-spacing: 3px;
+        margin-top: 60px !important;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+        border-bottom: 1px solid #333;
+        padding-bottom: 8px;
+    }}
 
-# --- CSS: THE "SOLID TILE" ENGINE ---
-def inject_css():
-    st.markdown(f"""
-        <style>
-        .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0e1117; }}
-        
-        /* Category Headers: Pro Gallery Spacing */
-        .category-header {{
-            font-size: 14px;
-            font-weight: 800;
-            color: #666 !important;
-            letter-spacing: 4px;
-            margin-top: 100px !important; 
-            margin-bottom: 40px !important;
-            text-transform: uppercase;
-            border-bottom: 1px solid #222;
-            padding-bottom: 10px;
-        }}
+    /* Format Card: Simple & Robust */
+    .format-card {{
+        background-color: #1a1c1e;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 10px;
+        border: 1px solid #2b2b2b;
+    }}
 
-        /* The Button-as-a-Card */
-        div.stButton > button {{
-            width: 100% !important;
-            height: 130px !important;
-            background-color: {BG_CARD} !important;
-            border: 1px solid {SECONDARY_BORDER} !important;
-            border-radius: 14px !important;
-            color: white !important;
-            padding-left: 90px !important; /* Space for the background icon */
-            text-align: left !important;
-            display: block !important;
-            transition: all 0.2s ease-in-out !important;
-            white-space: pre-wrap !important; /* Allows \n for title/size split */
-            font-size: 20px !important;
-            font-weight: 700 !important;
-            line-height: 1.2 !important;
-        }}
+    /* PSAM Button Style */
+    .stButton>button {{
+        background-color: {ACCENT_COLOR};
+        color: white;
+        border-radius: 8px;
+        border: none;
+        font-weight: bold;
+    }}
+    </style>
+""", unsafe_allow_html=True)
 
-        /* Icon background injection */
-        .tile-active button {{
-            border: 2px solid {ACCENT_COLOR} !important;
-            background-color: {BG_ACTIVE} !important;
-            box-shadow: 0 4px 20px {ACCENT_COLOR}15 !important;
-        }}
-
-        div.stButton > button:hover {{
-            border-color: {ACCENT_COLOR}88 !important;
-            background-color: #222 !important;
-        }}
-
-        /* Utility Buttons (Select All/None) */
-        .utility-btn button {{
-            height: 2.5em !important;
-            padding: 0 15px !important;
-            font-size: 12px !important;
-            background: transparent !important;
-            color: #777 !important;
-            border: 1px solid #333 !important;
-        }}
-        .utility-btn button:hover {{ border-color: white !important; color: white !important; }}
-        </style>
-    """, unsafe_allow_html=True)
-
-# --- UTILITIES ---
+# --- 2. HELPERS ---
 def calculate_ratio(w, h):
     gcd = math.gcd(w, h)
     return f"{w//gcd}:{h//gcd}"
 
-def sanitize_filename(name):
+def sanitize(name):
     return re.sub(r'[^a-zA-Z0-9]', '_', name)
 
-def get_base64_svg(ratio_str, active=False):
-    """ Encodes SVG for button background """
-    color = ACCENT_COLOR if active else "#555"
+def get_svg_rect(ratio_str):
+    """ Simple SVG rectangle indicator """
     try:
         r_w, r_h = map(int, ratio_str.split(":"))
-        max_dim = 35
-        w, h = (max_dim, int(max_dim * (r_h / r_w))) if r_w > r_h else (int(max_dim * (r_w / r_h)), max_dim)
-        svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50">
-                  <rect x="{(50-w)/2}" y="{(50-h)/2}" width="{w}" height="{h}" fill="none" stroke="{color}" stroke-width="2.5"/>
-                  </svg>'''
-        return base64.b64encode(svg.encode()).decode()
+        max_d = 30
+        w, h = (max_d, int(max_d*(r_h/r_w))) if r_w > r_h else (int(max_d*(r_w/r_h)), max_d)
+        return f'<svg width="40" height="40"><rect x="{(40-w)/2}" y="{(40-h)/2}" width="{w}" height="{h}" fill="none" stroke="{ACCENT_COLOR}" stroke-width="2"/></svg>'
     except: return ""
 
-# --- APP START ---
-inject_css()
-
+# --- 3. STATE & DATA ---
 if 'specs' not in st.session_state:
     if os.path.exists("transformer_specs.json"):
-        with open("transformer_specs.json", "r") as f: st.session_state.specs = json.load(f)['formats']
-    else: st.session_state.specs = []
+        with open("transformer_specs.json", "r") as f:
+            st.session_state.specs = json.load(f)['formats']
+    else:
+        st.session_state.specs = []
 
-if 'selected_indices' not in st.session_state:
-    st.session_state.selected_indices = {i for i in range(len(st.session_state.specs))}
-
-# --- SIDEBAR ---
-st.sidebar.title("VISUAL TRANSFORMER")
-uploaded_files = st.sidebar.file_uploader("BATCH IMPORT", type=['jpg', 'jpeg', 'png', 'webp'], accept_multiple_files=True)
-project_name = st.sidebar.text_input("PROJECT NAME", value="PSAM_Batch")
+# --- 4. SIDEBAR ---
+st.sidebar.title("Visual Transformer")
+uploaded_files = st.sidebar.file_uploader("BATCH IMPORT", type=['jpg', 'png', 'webp'], accept_multiple_files=True)
+project_name = st.sidebar.text_input("PROJECT NAME", value="PSAM_Export")
 
 st.sidebar.divider()
 st.sidebar.subheader("Compression Settings")
-global_quality = st.sidebar.slider("QUALITY", 10, 100, 85)
-resampling_choice = st.sidebar.selectbox("ENGINE", ["LANCZOS (High Quality)", "BILINEAR (Fast)", "BICUBIC (Smooth)"])
+quality = st.sidebar.slider("QUALITY", 10, 100, 85)
+engine_choice = st.sidebar.selectbox("ENGINE", ["LANCZOS (High Quality)", "BILINEAR", "BICUBIC"])
+engine = Image.Resampling.LANCZOS if "LANCZOS" in engine_choice else Image.Resampling.BILINEAR
 
-# --- MAIN ---
-tab_main, tab_manage = st.tabs(["TRANSFORMER", "MANAGE LIBRARY"])
+# --- 5. MAIN UI ---
+tab_run, tab_lib = st.tabs(["TRANSFORMER", "LIBRARY"])
 
-with tab_main:
+with tab_run:
     if not uploaded_files:
-        st.info("Import images in the sidebar to visualize assets.")
+        st.info("Upload images in the sidebar to get started.")
     else:
-        # 1. Selection Tools
-        tcol1, tcol2, _ = st.columns([1, 1, 6])
-        with tcol1:
-            st.markdown('<div class="utility-btn">', unsafe_allow_html=True)
-            if st.button("SELECT ALL", key="all"): 
-                st.session_state.selected_indices = {i for i in range(len(st.session_state.specs))}; st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-        with tcol2:
-            st.markdown('<div class="utility-btn">', unsafe_allow_html=True)
-            if st.button("SELECT NONE", key="none"): 
-                st.session_state.selected_indices = set(); st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        # 2. Format Columns
+        # Selection Tools
+        col_a, col_b, _ = st.columns([1, 1, 5])
+        # Note: Select All logic is simplified for stability
+        
+        st.write("### Target Formats")
+        
         mcol1, mcol2, mcol3 = st.columns(3)
-        cats = ["SOCIAL", "WEB", "EMAIL"]
-        cat_cols = {"SOCIAL": mcol1, "WEB": mcol2, "EMAIL": mcol3}
+        cats = {"SOCIAL": mcol1, "WEB": mcol2, "EMAIL": mcol3}
+        selected_formats = []
 
-        for cat in cats:
-            with cat_cols[cat]:
-                st.markdown(f'<p class="category-header">{cat}</p>', unsafe_allow_html=True)
+        for category, col in cats.items():
+            with col:
+                st.markdown(f'<p class="cat-header">{category}</p>', unsafe_allow_html=True)
+                cat_specs = [s for s in st.session_state.specs if s['category'] == category]
                 
-                for idx, spec in enumerate(st.session_state.specs):
-                    if spec['category'] == cat:
-                        active = idx in st.session_state.selected_indices
-                        icon_b64 = get_base64_svg(spec['ratio'], active)
-                        
-                        # Style the specific button with its icon background
-                        st.markdown(f"""
-                            <style>
-                            div.stButton:has(button[key="tile_{idx}"]) button {{
-                                background-image: url(data:image/svg+xml;base64,{icon_b64}) !important;
-                                background-repeat: no-repeat !important;
-                                background-position: 25px center !important;
-                                background-size: 45px 45px !important;
-                            }}
-                            </style>
-                        """, unsafe_allow_html=True)
-                        
-                        # Wrapper for Active Glow
-                        st.markdown(f'<div class="{"tile-active" if active else ""}">', unsafe_allow_html=True)
-                        
-                        # The "Solid" clickable button
-                        # We use \n for a clean title/subtitle split inside the button
-                        label_text = f"{spec['label']}\n{spec['width']}x{spec['height']}"
-                        if st.button(label_text, key=f"tile_{idx}"):
-                            if active: st.session_state.selected_indices.remove(idx)
-                            else: st.session_state.selected_indices.add(idx)
-                            st.rerun()
-                        
-                        st.markdown('</div>', unsafe_allow_html=True)
+                for spec in cat_specs:
+                    # Fusing Icon and Text into the Checkbox Label
+                    icon = get_svg_rect(spec['ratio'])
+                    label = f"{spec['label']} ({spec['width']}x{spec['height']})"
+                    
+                    # Layout: Icon on left, Checkbox on right
+                    c_icon, c_check = st.columns([1, 4])
+                    with c_icon:
+                        st.markdown(icon, unsafe_allow_html=True)
+                    with c_check:
+                        if st.checkbox(label, value=True, key=f"check_{spec['label']}"):
+                            selected_formats.append(spec)
 
         st.divider()
-        if st.button("🚀 GENERATE ALL BATCH ASSETS", use_container_width=True):
-            zip_buffer = io.BytesIO()
-            with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
-                for f_idx, uploaded_file in enumerate(uploaded_files):
-                    img = Image.open(uploaded_file)
-                    if img.mode != 'RGB': img = img.convert('RGB')
-                    orig_name = sanitize_filename(os.path.splitext(uploaded_file.name)[0])
-                    for s_idx in st.session_state.selected_indices:
-                        spec = st.session_state.specs[s_idx]
-                        res = ImageOps.fit(img, (spec['width'], spec['height']), Image.Resampling.LANCZOS)
-                        f_name = f"PSAM_{sanitize_filename(spec['label'])}.{spec['ext'].lower()}"
-                        img_io = io.BytesIO()
-                        res.save(img_io, spec['ext'].upper(), quality=global_quality)
-                        zip_file.writestr(f"{orig_name}/{f_name}", img_io.getvalue())
-            
-            st.success("Batch Complete!")
-            st.download_button(label="📂 DOWNLOAD ZIP", data=zip_buffer.getvalue(), 
-                               file_name=f"{sanitize_filename(project_name)}.zip", mime="application/zip")
+        if st.button("🚀 GENERATE ALL ASSETS", use_container_width=True):
+            if not selected_formats:
+                st.warning("Please select at least one format.")
+            else:
+                zip_buffer = io.BytesIO()
+                with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
+                    for up_file in uploaded_files:
+                        img = Image.open(up_file).convert("RGB")
+                        base_n = sanitize(os.path.splitext(up_file.name)[0])
+                        
+                        for spec in selected_formats:
+                            res = ImageOps.fit(img, (spec['width'], spec['height']), engine)
+                            f_ext = spec['ext'].lower()
+                            f_name = f"PSAM_{sanitize(spec['label'])}.{f_ext}"
+                            
+                            img_io = io.BytesIO()
+                            res.save(img_io, format=spec['ext'].upper(), quality=quality)
+                            zip_file.writestr(f"{base_n}/{f_name}", img_io.getvalue())
+                
+                st.success(f"Processed {len(uploaded_files)} images!")
+                st.download_button(
+                    "📂 DOWNLOAD ZIP ARCHIVE",
+                    data=zip_buffer.getvalue(),
+                    file_name=f"{sanitize(project_name)}.zip",
+                    mime="application/zip"
+                )
 
-with tab_manage:
-    st.write("### Library Management")
+with tab_lib:
+    st.write("### Manage Museum Standards")
     for idx, spec in enumerate(st.session_state.specs):
-        with st.expander(f"✎ {spec['category']}: {spec['label']}"):
-            c1, c2, c3, c4 = st.columns(4)
-            new_label = c1.text_input("Label", spec['label'], key=f"edit_l_{idx}")
-            new_w = c2.number_input("Width", value=int(spec['width']), key=f"edit_w_{idx}")
-            new_h = c3.number_input("Height", value=int(spec['height']), key=f"edit_h_{idx}")
-            new_ext = c4.selectbox("Format", ["WebP", "JPEG"], index=0 if spec['ext'] == "WebP" else 1, key=f"edit_e_{idx}")
-            if st.button("Save Changes", key=f"save_{idx}"):
-                st.session_state.specs[idx].update({"label": new_label, "width": int(new_w), "height": int(new_h), "ext": new_ext, "ratio": calculate_ratio(int(new_w), int(new_h))})
+        with st.expander(f"{spec['category']}: {spec['label']}"):
+            c1, c2, c3 = st.columns(3)
+            l = c1.text_input("Label", spec['label'], key=f"l_{idx}")
+            w = c2.number_input("Width", value=int(spec['width']), key=f"w_{idx}")
+            h = c3.number_input("Height", value=int(spec['height']), key=f"h_{idx}")
+            
+            if st.button("Update", key=f"upd_{idx}"):
+                st.session_state.specs[idx].update({"label": l, "width": int(w), "height": int(h), "ratio": calculate_ratio(int(w), int(h))})
                 st.rerun()
-            if st.button("Remove Format", key=f"del_{idx}"):
-                st.session_state.specs.pop(idx); st.rerun()
+            if st.button("Delete", key=f"del_{idx}"):
+                st.session_state.specs.pop(idx)
+                st.rerun()
+    
+    st.divider()
+    st.write("### Add New Format")
+    with st.form("new_fmt"):
+        nc1, nc2, nc3 = st.columns(3)
+        cat = nc1.selectbox("Category", ["SOCIAL", "WEB", "EMAIL"])
+        lab = nc2.text_input("Label (e.g. Instagram Square)")
+        ext = nc3.selectbox("Format", ["JPEG", "WebP"])
+        nc4, nc5 = st.columns(2)
+        wid = nc4.number_input("Width", 1080)
+        hei = nc5.number_input("Height", 1080)
+        if st.form_submit_button("ADD TO LIBRARY"):
+            st.session_state.specs.append({
+                "category": cat, "label": lab, "width": int(wid), "height": int(hei),
+                "ratio": calculate_ratio(int(wid), int(hei)), "ext": ext, "quality": 85
+            })
+            st.rerun()

@@ -14,6 +14,7 @@ def save_specs_to_disk():
 
 st.markdown(f"""
     <style>
+    /* Global Helvetica */
     .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0e1117; }}
     
     /* CATEGORY HEADERS */
@@ -27,7 +28,7 @@ st.markdown(f"""
         text-transform: uppercase;
     }}
 
-    /* DISCREET TEXT LINKS: Replaces bulky buttons */
+    /* DISCREET TEXT LINKS */
     .discreet-link button {{
         background: transparent !important;
         border: none !important;
@@ -41,46 +42,70 @@ st.markdown(f"""
     }}
     .discreet-link button:hover {{ color: {ACCENT_COLOR} !important; text-decoration: underline !important; }}
 
-    /* TITLE-STYLE DROP ZONE */
-    .drop-zone-title {{
-        font-size: 48px !important;
-        font-weight: 800 !important;
-        color: white !important;
-        text-align: center;
-        margin-bottom: 10px !important;
-        letter-spacing: -1px;
-    }}
-
+    /* THE UNIFIED DROP ZONE */
     [data-testid="stFileUploader"] {{
         background-color: #16181a !important;
-        padding: 60px 20px !important;
+        padding: 40px 20px !important;
         border-radius: 20px !important;
-        border: 3px dashed #333 !important;
+        border: 2px dashed #333 !important; /* Clean dashed line */
         transition: 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 250px;
     }}
     [data-testid="stFileUploader"]:hover {{ border-color: {ACCENT_COLOR} !important; }}
     
-    /* HIDE THE WEIRD DEFAULT FILE LIST */
-    [data-testid="stFileUploader"] section {{ display: none !important; }}
-    [data-testid="stFileUploader"] label {{ display: none !important; }}
+    /* THE TITLE: Move inside and style as Helvetica */
+    [data-testid="stFileUploader"] label {{
+        display: block !important;
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+        font-size: 28px !important; /* Slightly smaller as requested */
+        font-weight: 700 !important;
+        color: #eee !important;
+        text-align: center !important;
+        margin-bottom: 20px !important;
+        width: 100% !important;
+    }}
 
-    /* LARGE IMAGE PREVIEW CARDS */
+    /* RECTIFY BROWSE BUTTON & FUNCTIONALITY */
+    [data-testid="stFileUploader"] section {{
+        background: transparent !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }}
+    
+    /* Hide the 'limit 200MB' and default text while keeping the button */
+    [data-testid="stFileUploader"] section > div {{ display: none !important; }}
+    
+    [data-testid="stFileUploader"] section button {{
+        display: block !important;
+        background-color: #333 !important;
+        color: #aaa !important;
+        border: 1px solid #444 !important;
+        padding: 8px 20px !important;
+        border-radius: 6px !important;
+        font-size: 13px !important;
+    }}
+    [data-testid="stFileUploader"] section button:hover {{ border-color: {ACCENT_COLOR} !important; color: white !important; }}
+
+    /* GALLERY CARDS */
     .preview-card {{
         background-color: #1a1c1e;
         border-radius: 12px;
         padding: 20px;
         border: 1px solid #2b2b2b;
-        margin-bottom: 20px;
+        margin-top: 20px;
         display: flex;
         align-items: center;
     }}
 
-    /* TAB NAVIGATION */
+    /* TABS & BUTTONS */
     .stTabs [data-baseweb="tab-list"] {{ gap: 40px; border-bottom: 1px solid #222; margin-bottom: 30px; }}
     .stTabs [data-baseweb="tab"] {{ height: 50px; background-color: transparent !important; color: #555 !important; font-weight: 700; }}
     .stTabs [aria-selected="true"] {{ color: {ACCENT_COLOR} !important; border-bottom: 2px solid {ACCENT_COLOR} !important; }}
-
-    /* GENERATE BUTTON */
     .stButton>button {{ background-color: {ACCENT_COLOR}; color: white; border-radius: 8px; font-weight: bold; height: 3.5em; }}
     </style>
 """, unsafe_allow_html=True)
@@ -101,7 +126,7 @@ def get_svg_rect(ratio_str, color=ACCENT_COLOR):
         return f'<svg width="45" height="45"><rect x="{(45-w)/2}" y="{(45-h)/2}" width="{w}" height="{h}" fill="none" stroke="{color}" stroke-width="2"/></svg>'
     except: return ""
 
-# --- 3. STATE & DATA ---
+# --- 3. STATE ---
 if 'specs' not in st.session_state:
     if os.path.exists("transformer_specs.json"):
         with open("transformer_specs.json", "r") as f:
@@ -111,32 +136,29 @@ if 'specs' not in st.session_state:
 if 'proj_name' not in st.session_state:
     st.session_state.proj_name = "PSAM_Export"
 
-# --- 4. TOP-LEVEL NAVIGATION ---
+# --- 4. NAVIGATION ---
 tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
 with tab_run:
-    # 4.1 BIG TITLE DROP ZONE
-    st.markdown('<p class="drop-zone-title">Drag & Drop Images Here</p>', unsafe_allow_html=True)
-    uploaded_files = st.file_uploader("uploader", type=['jpg', 'png', 'webp'], accept_multiple_files=True, label_visibility="collapsed")
+    # 4.1 FUNCTIONAL DROP ZONE
+    # Label is now the Title, placed inside the container via CSS
+    uploaded_files = st.file_uploader("Drag & Drop Images Here", type=['jpg', 'png', 'webp'], accept_multiple_files=True)
 
     if uploaded_files:
-        # 4.2 CUSTOM LARGE PREVIEWS
-        st.write("### Import Gallery")
+        st.write(" ")
+        st.markdown("### Gallery Preview")
         for up_file in uploaded_files:
             with st.container():
-                # Card is 2x bigger than standard list item
                 st.markdown('<div class="preview-card">', unsafe_allow_html=True)
-                p_col1, p_col2 = st.columns([1, 4])
+                p_col1, p_col2 = st.columns([1, 5])
                 with p_col1:
-                    st.image(up_file, width=150) # Actual visual preview
+                    st.image(up_file, width=150)
                 with p_col2:
                     st.markdown(f"**{up_file.name}**")
                     st.markdown(f"<span style='color: #666;'>{up_file.size / 1024 / 1024:.2f} MB</span>", unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
-        # 4.3 DISCREET SELECTION LINKS
         st.markdown('<div class="discreet-link">', unsafe_allow_html=True)
-        # Using a row that spans the full width rather than tight columns for responsiveness
         t_col1, t_col2, _ = st.columns([1, 1, 8])
         with t_col1:
             if st.button("SELECT ALL"): 
@@ -148,7 +170,6 @@ with tab_run:
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # 4.4 FORMAT GRID
         mcol1, mcol2, mcol3 = st.columns(3)
         cats = {"SOCIAL": mcol1, "WEB": mcol2, "EMAIL": mcol3}
         selected_formats = []

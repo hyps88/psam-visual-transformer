@@ -130,14 +130,16 @@ with tab_run:
                             cx, cy = sp.get('cx', 0.5), sp.get('cy', 0.5)
                             res = ImageOps.fit(img, (sp['width'], sp['height']), method=Image.Resampling.LANCZOS, centering=(cx, cy))
                             ext = sp.get('ext', 'WebP').upper()
-                            fn = f"PSAM_{sanitize(sp['label'])}_{sp['width']}x{sp['height']}.{ext.lower()}"
+                            # UPDATED: Flat root folder + Original name included in filename
+                            fn = f"PSAM_{bn}_{sanitize(sp['label'])}_{sp['width']}x{sp['height']}.{ext.lower()}"
                             buf = io.BytesIO()
                             if ext == "JPEG": res.save(buf, format="JPEG", quality=sp.get('quality', 95), subsampling=0, optimize=True)
                             else: res.save(buf, format="WEBP", quality=sp.get('quality', 95), lossless=(sp.get('quality')==100), method=6)
-                            zf.writestr(f"{bn}/{fn}", buf.getvalue())
+                            # Saving directly to root of ZIP (no folder prefix)
+                            zf.writestr(fn, buf.getvalue())
                 st.success("Batch Generated."); st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
 
-# --- TAB 2: FORMATS ---
+# --- TAB 2: FORMATS [LOCKED] ---
 with tab_fmt:
     st.write("### Museum Standards Library")
     if st.session_state.specs:
@@ -158,7 +160,7 @@ with tab_fmt:
         if st.form_submit_button("ADD TO SYSTEM"):
             st.session_state.specs.append({"category": n_cat.upper(), "label": n_lab, "width": int(n_w), "height": int(n_h), "ratio": calculate_ratio(int(n_w), int(n_h)), "ext": n_ext, "quality": n_q}); save_specs_to_disk(); st.rerun()
 
-# --- TAB 3: SETTINGS ---
+# --- TAB 3: SETTINGS [LOCKED] ---
 with tab_set:
     st.write("### Workflow Settings")
     st.session_state.proj_name = st.text_input("Project Export Name", value=st.session_state.proj_name)

@@ -6,37 +6,45 @@ from datetime import datetime
 # --- CONFIG & DYNAMIC STYLING ---
 ACCENT_COLOR = "#f36e2e"
 BG_CARD = "#1e1e1e"
+BG_SELECTED = "#2d2d2d"
 
 st.set_page_config(page_title="Visual Transformer", page_icon="🖼️", layout="wide")
 
+# Custom CSS to make buttons look like large Sleek Tiles
 st.markdown(f"""
     <style>
-    /* Global Font & Spacing */
     .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0e1117; }}
     
-    /* Sleek Button Toggles */
-    div.stButton > button {{
-        border-radius: 10px;
-        border: 1px solid #333;
-        transition: all 0.2s ease;
-        height: 3.5em;
-    }}
-    
-    /* Format Card Styling */
-    .format-card {{
-        background-color: {BG_CARD};
-        padding: 25px;
-        border-radius: 15px;
-        margin-bottom: 20px;
-        border: 1px solid #2b2b2b;
-    }}
-    
-    /* Remove default padding for columns to allow custom gaps */
-    [data-testid="column"] {{
-        padding: 0 15px !important;
+    /* Center the titles and add breathing room */
+    h4 {{ 
+        margin-bottom: 25px !important; 
+        letter-spacing: 1px; 
+        border-left: 3px solid {ACCENT_COLOR}; 
+        padding-left: 15px; 
     }}
 
-    h1, h2, h3, h4 {{ font-family: 'Helvetica Neue', Helvetica, sans-serif; font-weight: 700 !important; color: white !important; }}
+    /* Tile Button Styling */
+    div.stButton > button {{
+        width: 100%;
+        border-radius: 12px;
+        padding: 40px 20px !important;
+        background-color: {BG_CARD};
+        border: 1px solid #333;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 10px;
+    }}
+
+    div.stButton > button:hover {{
+        border-color: {ACCENT_COLOR};
+        background-color: #252525;
+    }}
+    
+    /* Responsive Spacing */
+    [data-testid="column"] {{ padding: 0 25px !important; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -48,41 +56,35 @@ def calculate_ratio(w, h):
 def sanitize_filename(name):
     return re.sub(r'[^a-zA-Z0-9]', '_', name)
 
-def get_ratio_icon_svg(ratio_str):
-    """ Generates the visual rectangle for the UI """
+def get_ratio_icon_svg(ratio_str, active=False):
+    """ Generates the visual rectangle with state-aware coloring """
+    color = ACCENT_COLOR if active else "#555"
     try:
         r_w, r_h = map(int, ratio_str.split(":"))
-        max_dim = 35
+        max_dim = 40
         if r_w > r_h: w, h = max_dim, int(max_dim * (r_h / r_w))
         else: h, w = max_dim, int(max_dim * (r_w / r_h))
-        return f'<svg width="45" height="45"><rect x="{(45-w)/2}" y="{(45-h)/2}" width="{w}" height="{h}" fill="none" stroke="{ACCENT_COLOR}" stroke-width="2"/></svg>'
+        return f'<svg width="50" height="50"><rect x="{(50-w)/2}" y="{(50-h)/2}" width="{w}" height="{h}" fill="none" stroke="{color}" stroke-width="2.5"/></svg>'
     except: return ""
 
-# --- SESSION STATE MANAGEMENT ---
+# --- SESSION STATE ---
 if 'specs' not in st.session_state:
     if os.path.exists("transformer_specs.json"):
         with open("transformer_specs.json", "r") as f: st.session_state.specs = json.load(f)['formats']
     else: st.session_state.specs = []
 
-# Initialize selection state if not present
 if 'selected_indices' not in st.session_state:
     st.session_state.selected_indices = {i for i in range(len(st.session_state.specs))}
 
-# --- SIDEBAR: CONTROLS ---
+# --- SIDEBAR ---
 st.sidebar.title("VISUAL TRANSFORMER")
-
-# Drag and Drop Batcher
-uploaded_files = st.sidebar.file_uploader("DRAG & DROP MASTER IMAGES", type=['jpg', 'jpeg', 'png', 'webp'], accept_multiple_files=True)
+uploaded_files = st.sidebar.file_uploader("BATCH IMPORT", type=['jpg', 'jpeg', 'png', 'webp'], accept_multiple_files=True)
 project_name = st.sidebar.text_input("PROJECT NAME", value="PSAM_Batch")
 
 st.sidebar.divider()
 st.sidebar.subheader("Compression Settings")
-global_quality = st.sidebar.slider("QUALITY", 10, 100, 80)
-resampling_map = {
-    "LANCZOS (High Quality)": Image.Resampling.LANCZOS,
-    "BILINEAR (Fast)": Image.Resampling.BILINEAR,
-    "BICUBIC (Smooth)": Image.Resampling.BICUBIC
-}
+global_quality = st.sidebar.slider("QUALITY", 10, 100, 85)
+resampling_map = {"LANCZOS (High Quality)": Image.Resampling.LANCZOS, "BILINEAR (Fast)": Image.Resampling.BILINEAR, "BICUBIC (Smooth)": Image.Resampling.BICUBIC}
 resampling_choice = st.sidebar.selectbox("ENGINE", list(resampling_map.keys()))
 
 # --- MAIN INTERFACE ---
@@ -90,18 +92,18 @@ tab_main, tab_manage = st.tabs(["TRANSFORMER", "MANAGE LIBRARY"])
 
 with tab_main:
     if not uploaded_files:
-        st.info("Import images in the sidebar to visualize assets.")
+        st.info("Import images in the sidebar to begin processing.")
     else:
-        st.write(f"### Target Formats")
-        
-        # Batch Action Buttons
+        # Selection Tools
         bcol1, bcol2, _ = st.columns([1, 1, 4])
-        if bcol1.button("SELECT ALL"): st.session_state.selected_indices = {i for i in range(len(st.session_state.specs))}; st.rerun()
-        if bcol2.button("DESELECT ALL"): st.session_state.selected_indices = set(); st.rerun()
+        if bcol1.button("SELECT ALL"): 
+            st.session_state.selected_indices = {i for i in range(len(st.session_state.specs))}; st.rerun()
+        if bcol2.button("DESELECT ALL"): 
+            st.session_state.selected_indices = set(); st.rerun()
 
-        st.write(" ") # Spacer
+        st.write(" ") 
 
-        # 3-Column Layout with deep padding
+        # Format Grid
         mcol1, mcol2, mcol3 = st.columns(3)
         categories = ["SOCIAL", "WEB", "EMAIL"]
         cat_columns = {"SOCIAL": mcol1, "WEB": mcol2, "EMAIL": mcol3}
@@ -111,27 +113,27 @@ with tab_main:
                 st.markdown(f"#### {cat}")
                 for idx, spec in enumerate(st.session_state.specs):
                     if spec['category'] == cat:
-                        # Logic for Sleek Button Toggles
                         is_selected = idx in st.session_state.selected_indices
-                        btn_label = f"{spec['label']}\n{spec['width']}x{spec['height']}"
                         
-                        # CSS-Injected Button color based on state
-                        btn_color = ACCENT_COLOR if is_selected else "#2b2b2b"
-                        text_color = "white" if is_selected else "#888"
+                        # Visual Presentation Card
+                        border_style = f"2px solid {ACCENT_COLOR}" if is_selected else "1px solid #333"
+                        bg_style = BG_SELECTED if is_selected else BG_CARD
                         
-                        icon_svg = get_ratio_icon_svg(spec['ratio'])
+                        st.markdown(f"""
+                            <div style="background: {bg_style}; border: {border_style}; padding: 20px; border-radius: 12px; display: flex; align-items: center; margin-bottom: 10px;">
+                                <div style="margin-right: 20px;">{get_ratio_icon_svg(spec['ratio'], is_selected)}</div>
+                                <div style="color: white;">
+                                    <div style="font-weight: bold; font-size: 15px;">{spec['label']}</div>
+                                    <div style="color: #888; font-size: 12px;">{spec['width']} x {spec['height']}</div>
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
                         
-                        # Format Presentation Container
-                        with st.container():
-                            st.markdown(f'<div style="display: flex; align-items: center; margin-bottom: 15px; padding: 15px; background: {BG_CARD}; border-radius: 12px; border: 1px solid #333;">'
-                                        f'<div style="margin-right: 15px;">{icon_svg}</div>'
-                                        f'<div style="flex-grow: 1; color: white; font-size: 14px; font-weight: 500;">{spec["label"]}<br><span style="color: #666; font-size: 12px;">{spec["width"]}x{spec["height"]} ({spec["ratio"]})</span></div>'
-                                        f'</div>', unsafe_allow_html=True)
-                            
-                            if st.button("ACTIVE" if is_selected else "DISABLED", key=f"btn_{idx}"):
-                                if is_selected: st.session_state.selected_indices.remove(idx)
-                                else: st.session_state.selected_indices.add(idx)
-                                st.rerun()
+                        # The invisible "Action" button
+                        if st.button("✓ SELECTED" if is_selected else "SELECT", key=f"btn_{idx}"):
+                            if is_selected: st.session_state.selected_indices.remove(idx)
+                            else: st.session_state.selected_indices.add(idx)
+                            st.rerun()
 
         st.divider()
         if st.button("🚀 GENERATE ALL BATCH ASSETS", use_container_width=True):
@@ -143,7 +145,7 @@ with tab_main:
                 for f_idx, uploaded_file in enumerate(uploaded_files):
                     img = Image.open(uploaded_file)
                     if img.mode != 'RGB': img = img.convert('RGB')
-                    orig_name = os.path.splitext(uploaded_file.name)[0]
+                    orig_name = sanitize_filename(os.path.splitext(uploaded_file.name)[0])
                     progress_text.text(f"Processing: {orig_name}...")
 
                     for s_idx in st.session_state.selected_indices:
@@ -155,7 +157,6 @@ with tab_main:
                         
                         img_io = io.BytesIO()
                         res.save(img_io, spec['ext'].upper(), quality=global_quality)
-                        # Organized by Project > Original Image > Format
                         zip_file.writestr(f"{orig_name}/{f_name}", img_io.getvalue())
                     
                     progress_bar.progress((f_idx + 1) / len(uploaded_files))
@@ -169,7 +170,7 @@ with tab_main:
             )
 
 with tab_manage:
-    st.write("### Manage Format Library")
+    st.write("### Library Management")
     for idx, spec in enumerate(st.session_state.specs):
         with st.expander(f"✎ {spec['category']}: {spec['label']}"):
             c1, c2, c3, c4 = st.columns(4)
@@ -195,5 +196,5 @@ with tab_manage:
         n_w = nc4.number_input("Width (px)", value=1080)
         n_h = nc5.number_input("Height (px)", value=1080)
         if st.form_submit_button("ADD TO SYSTEM"):
-            st.session_state.specs.append({"category": n_cat, "label": n_lab, "width": int(n_w), "height": int(n_h), "ratio": calculate_ratio(int(n_w), int(n_h)), "ext": n_ext, "quality": 80})
+            st.session_state.specs.append({"category": n_cat, "label": n_lab, "width": int(n_w), "height": int(n_h), "ratio": calculate_ratio(int(n_w), int(n_h)), "ext": n_ext, "quality": 85})
             st.rerun()

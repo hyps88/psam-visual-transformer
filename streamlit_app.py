@@ -14,7 +14,7 @@ if 'specs' not in st.session_state:
 if 'proj_name' not in st.session_state:
     st.session_state.proj_name = "PSAM_Export"
 
-# --- 2. HELPERS [LOCKED + NEW LOGIC] ---
+# --- 2. HELPERS [LOCKED] ---
 def calculate_ratio(w, h):
     gcd = math.gcd(w, h); return f"{w//gcd}:{h//gcd}"
 
@@ -54,7 +54,7 @@ with tab_run:
     if uploaded_files:
         st.write(" ")
         
-        # 3.1 CUSTOM SETTINGS WITH LIVE PREVIEW
+        # 3.1 CUSTOM SETTINGS WITH REFINED LIVE PREVIEW
         st.markdown('<p class="cat-header-text">Custom Settings</p>', unsafe_allow_html=True)
         with st.container(border=True):
             c1, c2, c3, c4 = st.columns([2, 2, 2, 3])
@@ -64,23 +64,18 @@ with tab_run:
             cust_q = c4.slider("Compression / Quality", 10, 100, 85, key="cust_q")
             cust_active = st.checkbox("Apply Custom Settings to Export", value=False)
 
-            # --- LIVE ALIGNMENT ENGINE ---
+            # --- LIVE ALIGNMENT ENGINE (FIXED WIDTH PREVIEW) ---
             if cust_active:
                 st.divider()
                 st.write("#### 👁️ Preview & Alignment")
                 
-                # Use first image for live preview
                 preview_img = Image.open(uploaded_files[0]).convert("RGB")
-                
-                pcol_img, pcol_ctrl = st.columns([3, 1])
+                pcol_img, pcol_ctrl = st.columns([2, 1])
                 
                 with pcol_ctrl:
                     st.write("**Alignment Controls**")
-                    # Presets for quick workflow
                     preset = st.radio("Quick Presets", ["Center", "Top", "Bottom", "Left", "Right", "Manual"], horizontal=True)
                     
-                    # Manual X/Y Sliders (0.5 is center)
-                    # We map 0-100 to 0.0-1.0 for the PIL centering function
                     if preset == "Center": def_x, def_y = 50, 50
                     elif preset == "Top": def_x, def_y = 50, 0
                     elif preset == "Bottom": def_x, def_y = 50, 100
@@ -91,23 +86,20 @@ with tab_run:
                     man_x = st.slider("X-Axis (Left to Right)", 0, 100, def_x)
                     man_y = st.slider("Y-Axis (Top to Bottom)", 0, 100, def_y)
                     
-                    # Final normalized coordinates
                     final_cx = man_x / 100
                     final_cy = man_y / 100
 
                 with pcol_img:
-                    # Apply the live crop to the preview
-                    # centering=(X, Y) where 0 is top/left and 1 is bottom/right
                     res_preview = ImageOps.fit(preview_img, (cust_w, cust_h), centering=(final_cx, final_cy))
-                    st.image(res_preview, use_container_width=True, caption=f"Live Preview: {cust_w}x{cust_h}")
+                    # Capped at 500px to maintain dashboard layout integrity
+                    st.image(res_preview, width=500, caption=f"Proportional Preview ({calculate_ratio(cust_w, cust_h)})")
 
-        # 3.2 TEMPLATES TOGGLE [LOCKED DESIGN]
+        # 3.2 TEMPLATES TOGGLE [LOCKED]
         st.write(" ")
         show_templates = st.toggle("Templates", value=False)
 
         selected_formats = []
         if cust_active:
-            # Inject custom spec with the alignment data
             selected_formats.append({
                 "label": "Custom", "width": cust_w, "height": cust_h, 
                 "ext": cust_ext, "quality": cust_q, "cx": final_cx, "cy": final_cy
@@ -146,21 +138,17 @@ with tab_run:
                         img = Image.open(up_file).convert("RGB")
                         base_n = sanitize(os.path.splitext(up_file.name)[0])
                         for spec in selected_formats:
-                            # USE CUSTOM ALIGNMENT IF CUSTOM, ELSE DEFAULT CENTER (0.5, 0.5)
-                            cx = spec.get('cx', 0.5)
-                            cy = spec.get('cy', 0.5)
-                            
+                            cx = spec.get('cx', 0.5); cy = spec.get('cy', 0.5)
                             res = ImageOps.fit(img, (spec['width'], spec['height']), centering=(cx, cy))
                             f_ext = spec.get('ext', 'WebP').upper()
                             label_slug = sanitize(spec['label'])
                             f_name = f"PSAM_{label_slug}_{spec['width']}x{spec['height']}.{f_ext.lower()}"
-                            
                             img_io = io.BytesIO()
                             res.save(img_io, format=f_ext, quality=spec.get('quality', 85))
                             zip_file.writestr(f"{base_n}/{f_name}", img_io.getvalue())
                 st.success(f"Generated {len(uploaded_files)} image batches."); st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
 
-# --- 4. FORMATS & SETTINGS [REMAINS LOCKED] ---
+# --- 4. FORMATS & SETTINGS [LOCKED] ---
 with tab_fmt:
     st.write("### Museum Standards Library")
     if st.session_state.specs:

@@ -16,18 +16,18 @@ st.markdown(f"""
     <style>
     .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0e1117; }}
     
-    /* CATEGORY HEADERS: 20px Top Margin */
+    /* CATEGORY HEADERS */
     .cat-header {{
         font-size: 11px;
         font-weight: 800;
         color: #444;
         letter-spacing: 3px;
-        margin-top: 20px !important; 
+        margin-top: 40px !important; 
         margin-bottom: 25px !important;
         text-transform: uppercase;
     }}
 
-    /* DISCREET SELECTION LINKS: Text-based only */
+    /* DISCREET TEXT LINKS: Replaces bulky buttons */
     .discreet-link button {{
         background: transparent !important;
         border: none !important;
@@ -36,50 +36,43 @@ st.markdown(f"""
         font-weight: 500 !important;
         text-decoration: none !important;
         padding: 0 !important;
+        margin-right: 30px !important;
         height: auto !important;
-        margin-right: 25px !important;
     }}
     .discreet-link button:hover {{ color: {ACCENT_COLOR} !important; text-decoration: underline !important; }}
 
-    /* UNIFIED DRAG & DROP ZONE */
-    [data-testid="stFileUploader"] {{
-        background-color: #16181a !important; /* Single background color */
-        padding: 80px 20px !important;
-        border-radius: 20px !important;
-        border: 3px dashed #333 !important; /* Thicker dashes */
-        transition: 0.3s ease;
-        text-align: center;
-    }}
-    [data-testid="stFileUploader"]:hover {{ 
-        border-color: {ACCENT_COLOR} !important; /* Orange hover state */
-    }}
-    
-    /* TITLE STYLE: "Drag & Drop Images Here" */
-    [data-testid="stFileUploader"] label {{
-        font-size: 32px !important; 
-        color: #eee !important;
-        font-weight: 700 !important;
-        margin-bottom: 30px !important;
-        display: block !important;
-        text-align: center !important;
-    }}
-    
-    /* CENTER EVERYTHING IN UPLOADER */
-    [data-testid="stFileUploader"] section {{
-        background: transparent !important; /* Removes the second background box */
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }}
-    
-    /* STYLE THE BROWSE BUTTON */
-    [data-testid="stFileUploader"] section button {{
-        background-color: #333 !important;
+    /* TITLE-STYLE DROP ZONE */
+    .drop-zone-title {{
+        font-size: 48px !important;
+        font-weight: 800 !important;
         color: white !important;
-        border: none !important;
-        padding: 10px 25px !important;
-        margin-top: 10px !important;
+        text-align: center;
+        margin-bottom: 10px !important;
+        letter-spacing: -1px;
+    }}
+
+    [data-testid="stFileUploader"] {{
+        background-color: #16181a !important;
+        padding: 60px 20px !important;
+        border-radius: 20px !important;
+        border: 3px dashed #333 !important;
+        transition: 0.3s ease;
+    }}
+    [data-testid="stFileUploader"]:hover {{ border-color: {ACCENT_COLOR} !important; }}
+    
+    /* HIDE THE WEIRD DEFAULT FILE LIST */
+    [data-testid="stFileUploader"] section {{ display: none !important; }}
+    [data-testid="stFileUploader"] label {{ display: none !important; }}
+
+    /* LARGE IMAGE PREVIEW CARDS */
+    .preview-card {{
+        background-color: #1a1c1e;
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid #2b2b2b;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
     }}
 
     /* TAB NAVIGATION */
@@ -122,12 +115,28 @@ if 'proj_name' not in st.session_state:
 tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
 with tab_run:
-    # RECTIFIED DROP ZONE: Single background, centered, title text
-    uploaded_files = st.file_uploader("Drag & Drop Images Here", type=['jpg', 'png', 'webp'], accept_multiple_files=True)
+    # 4.1 BIG TITLE DROP ZONE
+    st.markdown('<p class="drop-zone-title">Drag & Drop Images Here</p>', unsafe_allow_html=True)
+    uploaded_files = st.file_uploader("uploader", type=['jpg', 'png', 'webp'], accept_multiple_files=True, label_visibility="collapsed")
 
     if uploaded_files:
-        # DISCREET SELECTION LINKS: Text-based only
+        # 4.2 CUSTOM LARGE PREVIEWS
+        st.write("### Import Gallery")
+        for up_file in uploaded_files:
+            with st.container():
+                # Card is 2x bigger than standard list item
+                st.markdown('<div class="preview-card">', unsafe_allow_html=True)
+                p_col1, p_col2 = st.columns([1, 4])
+                with p_col1:
+                    st.image(up_file, width=150) # Actual visual preview
+                with p_col2:
+                    st.markdown(f"**{up_file.name}**")
+                    st.markdown(f"<span style='color: #666;'>{up_file.size / 1024 / 1024:.2f} MB</span>", unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+
+        # 4.3 DISCREET SELECTION LINKS
         st.markdown('<div class="discreet-link">', unsafe_allow_html=True)
+        # Using a row that spans the full width rather than tight columns for responsiveness
         t_col1, t_col2, _ = st.columns([1, 1, 8])
         with t_col1:
             if st.button("SELECT ALL"): 
@@ -139,6 +148,7 @@ with tab_run:
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
+        # 4.4 FORMAT GRID
         mcol1, mcol2, mcol3 = st.columns(3)
         cats = {"SOCIAL": mcol1, "WEB": mcol2, "EMAIL": mcol3}
         selected_formats = []

@@ -1,62 +1,61 @@
 import streamlit as st
 from PIL import Image, ImageOps
-import json, os, math, re, io, zipfile, base64
+import json, os, math, re, io, zipfile
 from datetime import datetime
 
 # --- CONFIG & STYLING ---
 ACCENT_COLOR = "#f36e2e"
 BG_CARD = "#1a1c1e"
-BG_ACTIVE = "#25282c"
 
 st.set_page_config(page_title="Visual Transformer", page_icon="🖼️", layout="wide")
 
-# --- CSS: THE "SLEEK TILE" ENGINE ---
-def inject_custom_css():
-    st.markdown(f"""
-        <style>
-        /* Global Typography */
-        .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0e1117; }}
-        
-        /* Category Headers */
-        .category-header {{
-            font-size: 14px;
-            font-weight: 800;
-            color: #666 !important;
-            letter-spacing: 2px;
-            margin: 60px 0 30px 10px !important; /* High padding for clearness */
-            text-transform: uppercase;
-        }}
+st.markdown(f"""
+    <style>
+    /* Global Styles */
+    .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0e1117; }}
+    
+    /* Category Headers: Extreme Padding for Clearness */
+    .category-header {{
+        font-size: 13px;
+        font-weight: 800;
+        color: #555 !important;
+        letter-spacing: 3px;
+        margin-top: 100px !important; 
+        margin-bottom: 40px !important;
+        text-transform: uppercase;
+        border-bottom: 1px solid #222;
+        padding-bottom: 10px;
+    }}
 
-        /* The Tile Button */
-        div.stButton > button {{
-            width: 100%;
-            height: 100px !important;
-            background-color: {BG_CARD} !important;
-            border: 1px solid #2b2b2b !important;
-            border-radius: 12px !important;
-            color: white !important;
-            text-align: left !important;
-            padding-left: 80px !important; /* Room for the icon */
-            transition: all 0.2s ease-in-out;
-            margin-bottom: 12px;
-        }}
+    /* The Interactive Tile */
+    .tile-container {{
+        background-color: {BG_CARD};
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        border: 1px solid #2b2b2b;
+        transition: all 0.2s ease;
+    }}
+    
+    .tile-active {{
+        border: 2px solid {ACCENT_COLOR} !important;
+        background-color: #25282c !important;
+    }}
 
-        div.stButton > button:hover {{
-            border-color: {ACCENT_COLOR}33 !important;
-            background-color: {BG_ACTIVE} !important;
-        }}
-
-        /* Active State logic via custom labels */
-        .selected-btn button {{
-            border: 2px solid {ACCENT_COLOR} !important;
-            background-color: {BG_ACTIVE} !important;
-        }}
-        
-        /* Sidebar Polish */
-        section[data-testid="stSidebar"] {{ background-color: #121212; }}
-        .stSlider [data-testid="stMarkdownContainer"] {{ font-size: 12px; color: #888; }}
-        </style>
-    """, unsafe_allow_html=True)
+    /* Sidebar Cleanliness */
+    section[data-testid="stSidebar"] {{ background-color: #121212; }}
+    
+    /* Button Polish */
+    div.stButton > button {{
+        border-radius: 8px;
+        height: 3em;
+        font-weight: 600;
+        transition: 0.2s;
+    }}
+    </style>
+""", unsafe_allow_html=True)
 
 # --- UTILITIES ---
 def calculate_ratio(w, h):
@@ -66,22 +65,18 @@ def calculate_ratio(w, h):
 def sanitize_filename(name):
     return re.sub(r'[^a-zA-Z0-9]', '_', name)
 
-def get_base64_svg(ratio_str, active=False):
-    """ Generates a base64 encoded SVG for button background """
+def get_ratio_svg(ratio_str, active=False):
+    """ Standard SVG Rectangle """
     color = ACCENT_COLOR if active else "#444"
     try:
         r_w, r_h = map(int, ratio_str.split(":"))
-        max_dim = 30
-        w, h = (max_dim, int(max_dim * (r_h / r_w))) if r_w > r_h else (int(max_dim * (r_w / r_h)), max_dim)
-        svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50">
-                  <rect x="{(50-w)/2}" y="{(50-h)/2}" width="{w}" height="{h}" fill="none" stroke="{color}" stroke-width="2"/>
-                  </svg>'''
-        return base64.b64encode(svg.encode()).decode()
+        max_dim = 35
+        if r_w > r_h: w, h = max_dim, int(max_dim * (r_h / r_w))
+        else: h, w = max_dim, int(max_dim * (r_w / r_h))
+        return f'<svg width="45" height="45"><rect x="{(45-w)/2}" y="{(45-h)/2}" width="{w}" height="{h}" fill="none" stroke="{color}" stroke-width="2"/></svg>'
     except: return ""
 
-# --- APP START ---
-inject_custom_css()
-
+# --- DATA ---
 if 'specs' not in st.session_state:
     if os.path.exists("transformer_specs.json"):
         with open("transformer_specs.json", "r") as f: st.session_state.specs = json.load(f)['formats']
@@ -92,15 +87,15 @@ if 'selected_indices' not in st.session_state:
 
 # --- SIDEBAR ---
 st.sidebar.title("VISUAL TRANSFORMER")
-uploaded_files = st.sidebar.file_uploader("DRAG & DROP MASTER IMAGES", type=['jpg', 'jpeg', 'png', 'webp'], accept_multiple_files=True)
+uploaded_files = st.sidebar.file_uploader("BATCH IMPORT", type=['jpg', 'jpeg', 'png', 'webp'], accept_multiple_files=True)
 project_name = st.sidebar.text_input("PROJECT NAME", value="PSAM_Batch")
 
 st.sidebar.divider()
 st.sidebar.subheader("Compression Settings")
 global_quality = st.sidebar.slider("QUALITY", 10, 100, 85)
-resampling_choice = st.sidebar.selectbox("RESAMPLING ENGINE", ["LANCZOS (High Quality)", "BILINEAR (Fast)", "BICUBIC (Smooth)"])
+resampling_choice = st.sidebar.selectbox("ENGINE", ["LANCZOS (High Quality)", "BILINEAR (Fast)", "BICUBIC (Smooth)"])
 
-# --- MAIN INTERFACE ---
+# --- MAIN ---
 tab_main, tab_manage = st.tabs(["TRANSFORMER", "MANAGE LIBRARY"])
 
 with tab_main:
@@ -108,75 +103,66 @@ with tab_main:
         st.info("Import images in the sidebar to begin.")
     else:
         # Selection Tools
-        bcol1, bcol2, _ = st.columns([1, 1, 5])
-        if bcol1.button("SELECT ALL"): 
+        col_a, col_b, _ = st.columns([1, 1, 5])
+        if col_a.button("SELECT ALL"): 
             st.session_state.selected_indices = {i for i in range(len(st.session_state.specs))}; st.rerun()
-        if bcol2.button("DESELECT ALL"): 
+        if col_b.button("DESELECT ALL"): 
             st.session_state.selected_indices = set(); st.rerun()
 
-        cols = st.columns(3)
-        categories = ["SOCIAL", "WEB", "EMAIL"]
+        mcol1, mcol2, mcol3 = st.columns(3)
+        cats = ["SOCIAL", "WEB", "EMAIL"]
+        cat_cols = {"SOCIAL": mcol1, "WEB": mcol2, "EMAIL": mcol3}
 
-        for i, cat in enumerate(categories):
-            with cols[i]:
+        for cat in cats:
+            with cat_cols[cat]:
                 st.markdown(f'<p class="category-header">{cat}</p>', unsafe_allow_html=True)
                 
                 for idx, spec in enumerate(st.session_state.specs):
                     if spec['category'] == cat:
-                        is_active = idx in st.session_state.selected_indices
+                        active = idx in st.session_state.selected_indices
                         
-                        # Dynamic CSS for the specific button icon
-                        icon_b64 = get_base64_svg(spec['ratio'], is_active)
+                        # Tile Rendering
+                        card_class = "tile-container tile-active" if active else "tile-container"
                         st.markdown(f"""
-                            <style>
-                            div[data-testid="column"]:nth-of-type({i+1}) div.stButton:nth-of-type({(idx%len(st.session_state.specs))+10}) button {{
-                                background-image: url(data:image/svg+xml;base64,{icon_b64}) !important;
-                                background-repeat: no-repeat !important;
-                                background-position: 20px center !important;
-                            }}
-                            </style>
+                            <div class="{card_class}">
+                                <div style="margin-right: 20px;">{get_ratio_svg(spec['ratio'], active)}</div>
+                                <div style="flex-grow: 1;">
+                                    <div style="font-weight: 700; color: white; font-size: 15px;">{spec['label']}</div>
+                                    <div style="color: #666; font-size: 12px;">{spec['width']} x {spec['height']}</div>
+                                </div>
+                            </div>
                         """, unsafe_allow_html=True)
 
-                        # Render the Tile
-                        # We use a container to apply the "Selected" class if active
-                        container = st.container()
-                        if is_active:
-                            st.markdown('<div class="selected-btn">', unsafe_allow_html=True)
-                        
-                        if st.button(f"{spec['label']}\n{spec['width']}x{spec['height']}", key=f"tile_{idx}"):
-                            if is_active: st.session_state.selected_indices.remove(idx)
+                        # The Clickable Action
+                        if st.button("✓ SELECTED" if active else "SELECT", key=f"btn_{idx}", use_container_width=True):
+                            if active: st.session_state.selected_indices.remove(idx)
                             else: st.session_state.selected_indices.add(idx)
                             st.rerun()
-                            
-                        if is_active:
-                            st.markdown('</div>', unsafe_allow_html=True)
+                        st.write("") # Spacer
 
         st.divider()
         if st.button("🚀 GENERATE ALL BATCH ASSETS", use_container_width=True):
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
-                progress_bar = st.progress(0)
                 for f_idx, uploaded_file in enumerate(uploaded_files):
                     img = Image.open(uploaded_file)
                     if img.mode != 'RGB': img = img.convert('RGB')
                     orig_name = sanitize_filename(os.path.splitext(uploaded_file.name)[0])
-
                     for s_idx in st.session_state.selected_indices:
                         spec = st.session_state.specs[s_idx]
                         res = ImageOps.fit(img, (spec['width'], spec['height']), Image.Resampling.LANCZOS)
                         f_name = f"PSAM_{sanitize_filename(spec['label'])}.{spec['ext'].lower()}"
-                        
                         img_io = io.BytesIO()
                         res.save(img_io, spec['ext'].upper(), quality=global_quality)
                         zip_file.writestr(f"{orig_name}/{f_name}", img_io.getvalue())
-                    progress_bar.progress((f_idx + 1) / len(uploaded_files))
             
-            st.success("Batch Complete!")
+            st.success("Batch Processing Complete!")
             st.download_button(label="📂 DOWNLOAD ZIP", data=zip_buffer.getvalue(), 
                                file_name=f"{sanitize_filename(project_name)}.zip", mime="application/zip")
 
 with tab_manage:
     st.write("### Library Management")
+    # (Management code remains standard for safety)
     for idx, spec in enumerate(st.session_state.specs):
         with st.expander(f"✎ {spec['category']}: {spec['label']}"):
             c1, c2, c3, c4 = st.columns(4)

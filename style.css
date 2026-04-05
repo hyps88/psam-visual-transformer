@@ -18,7 +18,7 @@
     text-align: center !important;
     min-height: 100px;
 }
-
+[data-testid="stFileUploader"]:hover { border-color: #f36e2e !important; }
 
 [data-testid="stFileUploaderDropzone"] div {
     background-color: none !important;

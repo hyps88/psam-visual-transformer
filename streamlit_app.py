@@ -14,7 +14,7 @@ if 'specs' not in st.session_state:
 if 'proj_name' not in st.session_state:
     st.session_state.proj_name = "PSAM_Export"
 
-# --- 2. HELPERS ---
+# --- 2. HELPERS [LOCKED] ---
 def calculate_ratio(w, h):
     if not w or not h: return "1:1"
     gcd = math.gcd(int(w), int(h))
@@ -73,7 +73,6 @@ with tab_run:
 
                 # --- PREVIEW ENGINE ---
                 with st.expander("👁️ Preview & Alignment Controls", expanded=False):
-                    # Bounding box logic for safe UI
                     target_aspect = cust_w / cust_h
                     max_dim = 500
                     if target_aspect > 1:
@@ -81,7 +80,6 @@ with tab_run:
                     else:
                         safe_h, safe_w = max_dim, int(max_dim * target_aspect)
 
-                    # Layout columns
                     pcol_img, pcol_ctrl = st.columns([1, 1])
                     
                     with pcol_ctrl:
@@ -94,7 +92,6 @@ with tab_run:
                         elif preset == "Right": dx, dy = 100, 50
                         else: dx, dy = 50, 50
 
-                        # New Descriptive Labels
                         man_x = st.slider("Left ← Alignment → Right", 0, 100, dx)
                         man_y = st.slider("Top ← Alignment → Bottom", 0, 100, dy)
                         final_cx, final_cy = man_x / 100, man_y / 100

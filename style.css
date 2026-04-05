@@ -6,7 +6,7 @@
 
 /* --- THE DRAG & DROP BOX: CENTERED & GIANT --- */
 [data-testid="stFileUploader"] {
-    background-color: #16181a !important;
+    background-color: none !important;
     padding: 60px 20px !important;
     border-radius: 20px !important;
     border: 3px dashed #333 !important;

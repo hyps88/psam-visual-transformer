@@ -14,6 +14,7 @@
 [data-testid="stFileUploaderDropzoneInstructions"] div {
     font-size: 58px !important; font-weight: 700 !important;
     color: #eee !important; text-align: center !important;
+    background-color: transparent !important;
 }
 
 /* --- THE CUSTOM SETTINGS FLEXBOX ENGINE --- */

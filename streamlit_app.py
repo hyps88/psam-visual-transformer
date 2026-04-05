@@ -64,16 +64,12 @@ with tab_run:
 
         if cust_active:
             with st.container(border=True):
-                # Aspect Ratio & Size Lock
                 lock_ar = st.checkbox("Force Original Aspect Ratio & Size", value=False, key="lock_ar_check")
-                
-                # Load original dimensions from the first file
                 orig_img_ref = Image.open(uploaded_files[0])
                 ow, oh = orig_img_ref.size
                 
                 c1, c2, c3, c4 = st.columns([2, 2, 2, 3])
                 
-                # If Locked, set Width to Original Width
                 if lock_ar:
                     cust_w = c1.number_input("Width (Original)", value=ow, key="cust_w_orig")
                     cust_h = int(cust_w * (oh / ow))
@@ -83,11 +79,9 @@ with tab_run:
                     cust_h = c2.number_input("Height", value=1080, key="cust_h_manual")
                 
                 cust_ext = c3.selectbox("Format", ["WebP", "JPEG"], key="cust_ext")
-                # 100% Quality handles Lossless
                 cust_q = c4.slider("Export Quality (100 = Lossless)", 10, 100, 95, key="cust_q")
 
                 with st.expander("👁️ Preview & Alignment Controls", expanded=False):
-                    # Aspect calculation for UI bounding box
                     aspect_val = cust_w / cust_h
                     sw, sh = (500, int(500/aspect_val)) if aspect_val > 1 else (int(500*aspect_val), 500)
                     
@@ -139,11 +133,23 @@ with tab_run:
         if st.button("GENERATE ALL ASSETS", use_container_width=True):
             if selected_formats:
                 zip_buffer = io.BytesIO()
+                total_steps = len(uploaded_files) * len(selected_formats)
+                current_step = 0
+                
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+
                 with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zf:
                     for up in uploaded_files:
                         img = Image.open(up).convert("RGB")
                         bn = sanitize(os.path.splitext(up.name)[0])
                         for sp in selected_formats:
+                            # Update Progress
+                            current_step += 1
+                            progress_val = int((current_step / total_steps) * 100)
+                            progress_bar.progress(progress_val)
+                            status_text.text(f"Processing: {bn} — {sp['label']}")
+
                             cx_v, cy_v = sp.get('cx', 0.5), sp.get('cy', 0.5)
                             res = ImageOps.fit(img, (sp['width'], sp['height']), method=Image.Resampling.LANCZOS, centering=(cx_v, cy_v))
                             ext_v = sp.get('ext', 'WebP').upper()
@@ -152,13 +158,19 @@ with tab_run:
                             fn = f"PSAM_{bn}_{sanitize(sp['label'])}_{sp['width']}x{sp['height']}.{ext_v.lower()}"
                             buf = io.BytesIO()
                             
-                            # PILLOW OPTIMIZATION: 100 Quality = Lossless
+                            # OPTIMIZED SAVING LOGIC
                             if ext_v == "JPEG":
+                                # 100 quality JPEG + subsampling=0 (Maximum Fidelity)
                                 res.save(buf, format="JPEG", quality=q_v, subsampling=0 if q_v == 100 else 'outer', optimize=True)
                             else:
-                                res.save(buf, format="WEBP", quality=q_v, lossless=(q_v == 100), method=6)
+                                # WebP Lossless Optimization: method=4 for better memory/speed balance
+                                res.save(buf, format="WEBP", quality=q_v, lossless=(q_v == 100), method=4)
+                            
                             zf.writestr(fn, buf.getvalue())
-                st.success("Batch Generated."); st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
+                
+                status_text.text("Export Ready!")
+                st.success("Batch Generated successfully.")
+                st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
 
 # --- TAB 2 & 3: FORMATS & SETTINGS [LOCKED] ---
 with tab_fmt:

@@ -30,13 +30,13 @@ def load_css(file_name):
 load_css('style.css')
 
 def save_specs_to_disk():
+    """ Persistent local save """
     with open("transformer_specs.json", "w") as f:
         json.dump({"formats": st.session_state.specs}, f, indent=4)
 
 # --- 4. HELPERS ---
 def calculate_ratio(w, h):
-    gcd = math.gcd(w, h)
-    return f"{w//gcd}:{h//gcd}"
+    gcd = math.gcd(w, h); return f"{w//gcd}:{h//gcd}"
 
 def get_svg_rect(ratio_str):
     try:
@@ -56,23 +56,18 @@ with tab_run:
 
     if uploaded_files:
         st.write(" ")
-        # Build dynamic category list from your JSON
         categories = sorted(list(set(s.get('category', 'OTHER') for s in st.session_state.specs)))
         selected_formats = []
 
         for category in categories:
             cat_specs = [s for s in st.session_state.specs if s.get('category') == category]
             
-            # HEADER: Title then Checkbox
-            # Use fixed-width micro columns to prevent stacking
+            # HEADER: Removed Divider Line
             h_cols = st.columns([0.1, 0.05, 0.85]) 
             with h_cols[0]:
                 st.markdown(f'<p class="cat-header-text" style="padding-top: 5px;">{category}</p>', unsafe_allow_html=True)
             with h_cols[1]:
-                st.checkbox("", value=True, key=f"master_{category}", 
-                            on_change=toggle_section, args=(category,), 
-                            label_visibility="collapsed")
-            st.divider() # Visual break for the header
+                st.checkbox("", value=True, key=f"master_{category}", on_change=toggle_section, args=(category,), label_visibility="collapsed")
             
             # 2-COLUMN GRID
             for i in range(0, len(cat_specs), 2):
@@ -85,11 +80,10 @@ with tab_run:
                             with c_icon: st.markdown(get_svg_rect(spec['ratio']), unsafe_allow_html=True)
                             with c_info:
                                 st.markdown(f'<div class="card-label">{spec["label"]}</div>', unsafe_allow_html=True)
-                                subline = f"{spec['width']}x{spec['height']} — {spec.get('ext', 'WebP').upper()} @ {spec.get('quality', 85)}%"
-                                st.markdown(f'<div class="card-subline">{subline}</div>', unsafe_allow_html=True)
+                                sub_text = f"{spec['width']}x{spec['height']} — {spec.get('ext', 'WebP').upper()} @ {spec.get('quality', 85)}%"
+                                st.markdown(f'<div class="card-subline">{sub_text}</div>', unsafe_allow_html=True)
                             with c_check:
-                                if st.checkbox("", value=st.session_state.get(f"run_{spec['label']}", True), 
-                                               key=f"run_{spec['label']}", label_visibility="collapsed"):
+                                if st.checkbox("", value=st.session_state.get(f"run_{spec['label']}", True), key=f"run_{spec['label']}", label_visibility="collapsed"):
                                     selected_formats.append(spec)
 
         st.divider()
@@ -125,8 +119,12 @@ with tab_fmt:
         nc1, nc2, nc3 = st.columns(3); n_lab = nc1.text_input("Format Name"); n_ext = nc2.selectbox("File Type", ["WebP", "JPEG"]); n_q = nc3.slider("Quality", 10, 100, 85)
         nc4, nc5 = st.columns(2); n_w = nc4.number_input("Width", 1080); n_h = nc5.number_input("Height", 1080)
         if st.form_submit_button("ADD TO SYSTEM"):
-            # FIX: Included all required fields to match initialization
             st.session_state.specs.append({"category": n_cat.upper(), "label": n_lab, "width": int(n_w), "height": int(n_h), "ratio": calculate_ratio(int(n_w), int(n_h)), "ext": n_ext, "quality": n_q}); save_specs_to_disk(); st.rerun()
 
 with tab_set:
+    st.write("### Workflow Settings")
     st.session_state.proj_name = st.text_input("Project Export Name", value=st.session_state.proj_name)
+    st.divider()
+    # RESTORED: JSON Library Export
+    json_data = json.dumps({"formats": st.session_state.specs}, indent=4)
+    st.download_button(label="💾 EXPORT LIBRARY (JSON)", data=json_data, file_name="psam_library_backup.json", mime="application/json")

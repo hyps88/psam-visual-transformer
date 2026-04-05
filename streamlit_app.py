@@ -7,8 +7,7 @@ if 'specs' not in st.session_state:
     if os.path.exists("transformer_specs.json"):
         with open("transformer_specs.json", "r") as f:
             st.session_state.specs = json.load(f).get('formats', [])
-    else:
-        st.session_state.specs = []
+    else: st.session_state.specs = []
 
 if 'proj_name' not in st.session_state:
     st.session_state.proj_name = "PSAM_Export"
@@ -24,32 +23,28 @@ def load_css(file_name):
 load_css('style.css')
 
 # --- 3. HELPERS ---
-def calculate_ratio(w, h):
-    gcd = math.gcd(w, h)
-    return f"{w//gcd}:{h//gcd}"
-
-def sanitize(name):
-    return re.sub(r'[^a-zA-Z0-9]', '_', name)
-
 def get_svg_rect(ratio_str):
     try:
         r_w, r_h = map(int, ratio_str.split(":"))
-        max_d = 40
+        max_d = 35
         w, h = (max_d, int(max_d*(r_h/r_w))) if r_w > r_h else (int(max_d*(r_w/r_h)), max_d)
-        return f'<svg width="50" height="50"><rect x="{(50-w)/2}" y="{(50-h)/2}" width="{w}" height="{h}" fill="none" stroke="#f36e2e" stroke-width="2.5"/></svg>'
+        return f'<svg width="45" height="45"><rect x="{(45-w)/2}" y="{(45-h)/2}" width="{w}" height="{h}" fill="none" stroke="#f36e2e" stroke-width="2.5"/></svg>'
     except: return ""
+
+def sanitize(name):
+    return re.sub(r'[^a-zA-Z0-9]', '_', name)
 
 # --- 4. INTERFACE ---
 tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
 with tab_run:
-    # 4.1 THE TRANSPARENT DROP ZONE
+    # 4.1 DROP ZONE (UNTOUCHED AS REQUESTED)
     uploaded_files = st.file_uploader("Drag & Drop Images Here", type=['jpg', 'png', 'webp'], accept_multiple_files=True, label_visibility="collapsed")
 
     if uploaded_files:
         st.write(" ")
         
-        # 4.2 VERTICAL CATEGORY SECTIONS
+        # 4.2 SECTIONED CATEGORIES
         categories = ["SOCIAL", "WEB", "EMAIL"]
         selected_formats = []
 
@@ -58,26 +53,29 @@ with tab_run:
             
             cat_specs = [s for s in st.session_state.specs if s.get('category') == category]
             
-            for spec in cat_specs:
-                # Custom Flexbox Card
-                # Wrapping in a div so our CSS 'format-card' can take over
-                st.markdown(f'''
-                    <div class="format-card">
-                        <div class="card-left">
-                            <div class="card-icon">{get_svg_rect(spec['ratio'])}</div>
-                            <div class="card-info">
-                                <div class="format-label">{spec["label"]}</div>
-                                <div class="format-subline">{spec['width']}x{spec['height']} — {spec.get('ext', 'WebP').upper()} @ {spec.get('quality', 85)}% Quality</div>
-                            </div>
-                        </div>
-                ''', unsafe_allow_html=True)
-                
-                # Use a unique key and align the checkbox to the right
-                # We use negative margin trick to pull the widget into the div
-                st.markdown('<div style="margin-top: -65px; text-align: right; padding-right: 20px;">', unsafe_allow_html=True)
-                if st.checkbox("", value=True, key=f"run_{spec['label']}", label_visibility="collapsed"):
-                    selected_formats.append(spec)
-                st.markdown('</div></div>', unsafe_allow_html=True)
+            # Create a 3-column grid for the cards
+            cols = st.columns(3)
+            
+            for i, spec in enumerate(cat_specs):
+                # Distribute cards across the 3 columns
+                with cols[i % 3]:
+                    # The Card "Wrapper"
+                    with st.container(border=True):
+                        # Nested columns to align Checkbox on the Right
+                        c_icon, c_text, c_check = st.columns([1, 4, 1])
+                        
+                        with c_icon:
+                            st.markdown(f'<div class="card-internal">{get_svg_rect(spec["ratio"])}</div>', unsafe_allow_html=True)
+                        
+                        with c_text:
+                            st.markdown(f'<div class="card-label">{spec["label"]}</div>', unsafe_allow_html=True)
+                            subline = f"{spec['width']}x{spec['height']} — {spec.get('ext', 'WebP').upper()} @ {spec.get('quality', 85)}%"
+                            st.markdown(f'<div class="card-subline">{subline}</div>', unsafe_allow_html=True)
+                            
+                        with c_check:
+                            # Checkbox is now inside the container, aligned right
+                            if st.checkbox("", value=True, key=f"run_{spec['label']}", label_visibility="collapsed"):
+                                selected_formats.append(spec)
 
         st.divider()
         if st.button("GENERATE ALL ASSETS", use_container_width=True):
@@ -89,10 +87,9 @@ with tab_run:
                         base_n = sanitize(os.path.splitext(up_file.name)[0])
                         for spec in selected_formats:
                             res = ImageOps.fit(img, (spec['width'], spec['height']), Image.Resampling.LANCZOS)
-                            f_ext = spec.get('ext', 'WebP').upper()
-                            f_name = f"PSAM_{sanitize(spec['label'])}.{f_ext.lower()}"
+                            f_name = f"PSAM_{sanitize(spec['label'])}.{spec.get('ext', 'webp').lower()}"
                             img_io = io.BytesIO()
-                            res.save(img_io, format=f_ext, quality=spec.get('quality', 85))
+                            res.save(img_io, format=spec.get('ext', 'WebP').upper(), quality=spec.get('quality', 85))
                             zip_file.writestr(f"{base_n}/{f_name}", img_io.getvalue())
                 
                 st.success(f"Generated {len(uploaded_files)} images.")

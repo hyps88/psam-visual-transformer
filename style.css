@@ -4,38 +4,43 @@
     background-color: #0e1117;
 }
 
-/* --- THE PERFECT DROP ZONE (LOCKED) --- */
+/* --- RESTORED: PERFECT DROP ZONE [LOCKED] --- */
 [data-testid="stFileUploader"] {
     background-color: transparent !important;
     padding: 60px 20px !important;
     border-radius: 20px !important;
     border: 2px dashed #333 !important;
 }
+
+[data-testid="stFileUploader"]:hover { border-color: #f36e2e !important; }
+
 [data-testid="stFileUploaderDropzoneInstructions"] div {
     font-size: 58px !important;
     font-weight: 700 !important;
     color: #eee !important;
     text-align: center !important;
+    line-height: 1.1 !important;
+}
+
+[data-testid="stFileUploader"] section {
+    background-color: transparent !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Hide small metadata to keep it museum-clean */
+[data-testid="stFileUploaderDropzoneInstructions"] small {
+    display: none !important;
 }
 
 /* --- PREVIEW LAYOUT ENGINE --- */
 .preview-container {
     display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: wrap !important;
-    gap: 40px !important; /* Added Padding */
+    gap: 40px !important;
     align-items: flex-start !important;
     margin-top: 20px;
-}
-
-.preview-image-wrapper {
-    flex: 0 0 auto !important;
-    max-width: 500px !important;
-}
-
-.preview-controls-wrapper {
-    flex: 1 1 300px !important;
-    max-width: 400px !important;
 }
 
 /* --- FORMAT CARDS (LOCKED) --- */

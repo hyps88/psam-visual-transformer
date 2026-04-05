@@ -5,6 +5,7 @@ import json, os, math, re, io, zipfile
 # --- 1. INITIALIZATION [LOCKED] ---
 st.set_page_config(page_title="Visual Transformer", layout="wide")
 
+# Persistent Library Initialization
 if 'specs' not in st.session_state:
     if os.path.exists("transformer_specs.json"):
         with open("transformer_specs.json", "r") as f:
@@ -14,8 +15,20 @@ if 'specs' not in st.session_state:
 if 'proj_name' not in st.session_state:
     st.session_state.proj_name = "PSAM_Export"
 
+# Navigation & Alignment Memory
 if 'img_idx' not in st.session_state: st.session_state.img_idx = 0
 if 'align_map' not in st.session_state: st.session_state.align_map = {}
+
+# FIXED: Managed State for the Templates Toggle
+if 'show_templates' not in st.session_state:
+    st.session_state.show_templates = False
+
+# Callback for Gallery Navigation
+def update_gallery(direction, total_files):
+    if direction == "next":
+        st.session_state.img_idx = (st.session_state.img_idx + 1) % total_files
+    else:
+        st.session_state.img_idx = (st.session_state.img_idx - 1) % total_files
 
 # --- 2. HELPERS [LOCKED] ---
 def calculate_ratio(w, h):
@@ -53,7 +66,7 @@ load_css('style.css')
 # --- 3. INTERFACE ---
 tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
-# --- TAB 1: TRANSFORMER [LOCKED] ---
+# --- TAB 1: TRANSFORMER ---
 with tab_run:
     uploaded_files = st.file_uploader("Drag & Drop", type=['jpg', 'png', 'webp'], accept_multiple_files=True, label_visibility="collapsed")
 
@@ -67,6 +80,7 @@ with tab_run:
 
         if cust_active:
             with st.container(border=True):
+                # Dual Override Checkboxes
                 col_locks = st.columns(2)
                 l_ar = col_locks[0].checkbox("Lock Aspect Ratio", value=False)
                 l_sz = col_locks[1].checkbox("Set Original Size (Override)", value=False)
@@ -76,7 +90,7 @@ with tab_run:
                 
                 c1, c2, c3, c4 = st.columns([2, 2, 2, 3])
                 
-                # Live Injection of Original Dimensions
+                # Original Size Live Injection
                 w_val = ow if l_sz else 1080
                 cust_w = c1.number_input(f"Width {'(Original)' if l_sz else ''}", value=w_val, disabled=l_sz, key="cw_in")
                 
@@ -91,6 +105,7 @@ with tab_run:
                 cust_q = c4.slider("Export Quality (100 = Lossless)", 10, 100, 95, key="cq_in")
 
                 with st.expander("👁️ Preview & Individual Alignment", expanded=True):
+                    # Robust Alignment State
                     if cur_file.name not in st.session_state.align_map:
                         st.session_state.align_map[cur_file.name] = {"x": 50, "y": 50}
                     
@@ -108,17 +123,14 @@ with tab_run:
                         nc1, nc2, nc3 = st.columns([1, 4, 1])
                         with nc1:
                             st.markdown('<div class="nav-chevron-trigger">', unsafe_allow_html=True)
-                            if st.button("〈", key="b_prev"):
-                                st.session_state.img_idx = (st.session_state.img_idx - 1) % len(uploaded_files)
-                                st.rerun()
+                            # Navigation uses callback to protect UI state
+                            st.button("〈", key="b_prev", on_click=update_gallery, args=("prev", len(uploaded_files)))
                             st.markdown('</div>', unsafe_allow_html=True)
                         with nc2:
                             st.markdown(f'<center><small>Image {st.session_state.img_idx + 1} of {len(uploaded_files)}</small><br><b>{cur_file.name}</b></center>', unsafe_allow_html=True)
                         with nc3:
                             st.markdown('<div class="nav-chevron-trigger">', unsafe_allow_html=True)
-                            if st.button("〉", key="b_next"):
-                                st.session_state.img_idx = (st.session_state.img_idx + 1) % len(uploaded_files)
-                                st.rerun()
+                            st.button("〉", key="b_next", on_click=update_gallery, args=("next", len(uploaded_files)))
                             st.markdown('</div>', unsafe_allow_html=True)
 
                     with pcol_img:
@@ -130,7 +142,9 @@ with tab_run:
             selected_formats.append({"label": "Custom", "width": cust_w, "height": cust_h, "ext": cust_ext, "quality": cust_q})
 
         st.write(" ")
-        show_templates = st.toggle("Templates", value=False)
+        # Using a fixed key for the toggle prevents it from resetting
+        show_templates = st.toggle("Templates", key="show_templates")
+        
         if show_templates:
             cats = sorted(list(set(s.get('category', 'OTHER') for s in st.session_state.specs)))
             for cat in cats:
@@ -144,6 +158,7 @@ with tab_run:
                     for idx, spec in enumerate(row_specs):
                         with grid_cols[idx]:
                             with st.container(border=True):
+                                # RESTORED: SVG Aspect Rectangles
                                 i_c, n_c, s_c = st.columns([1, 6, 1])
                                 with i_c: st.markdown(get_svg_rect(calculate_ratio(spec['width'], spec['height'])), unsafe_allow_html=True)
                                 with n_c:
@@ -169,7 +184,8 @@ with tab_run:
                         for sp in selected_formats:
                             step += 1
                             pb.progress(min(int((step/total)*100), 100))
-                            st_text.text(f"Processing: {bn}")
+                            st_text.text(f"Baking: {bn}")
+                            # Custom alignment for manual crops; center for templates
                             t_cx, t_cy = (align["x"]/100, align["y"]/100) if sp['label'] == "Custom" else (0.5, 0.5)
                             res = ImageOps.fit(img, (sp['width'], sp['height']), method=Image.Resampling.LANCZOS, centering=(t_cx, t_cy))
                             fn = f"PSAM_{bn}_{sanitize(sp['label'])}.{sp.get('ext','webp').lower()}"
@@ -178,10 +194,9 @@ with tab_run:
                             else: res.save(buf, format="WEBP", quality=sp.get('quality', 95), lossless=(sp.get('quality')==100), method=4)
                             zf.writestr(fn, buf.getvalue())
                 
-                st_text.text("Export Ready!")
-                st.success("Batch Generated."); st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
+                st_text.text("Done!"); st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
 
-# --- TAB 2: FORMATS [RESTORED] ---
+# --- TAB 2: FORMATS [LOCKED] ---
 with tab_fmt:
     st.write("### Museum Standards Library")
     if st.session_state.specs:
@@ -200,7 +215,7 @@ with tab_fmt:
         if st.form_submit_button("ADD TO SYSTEM"):
             st.session_state.specs.append({"category": n_cat.upper(), "label": n_lab, "width": int(n_w), "height": int(n_h), "ext": n_ext, "quality": n_q}); save_specs_to_disk(); st.rerun()
 
-# --- TAB 3: SETTINGS [RESTORED] ---
+# --- TAB 3: SETTINGS [LOCKED] ---
 with tab_set:
     st.write("### Workflow Settings")
     st.session_state.proj_name = st.text_input("Project Name", value=st.session_state.proj_name)

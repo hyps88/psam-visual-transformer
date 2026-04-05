@@ -19,7 +19,14 @@
 }
 
 
-
+[data-testid="stFileUploader"] section {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    min-height: 250px !important; /* Ensures there is enough vertical space to center within */
+}
 
 
 /* --- THE CUSTOM SETTINGS FLEXBOX ENGINE --- */

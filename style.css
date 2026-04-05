@@ -4,24 +4,6 @@
     background-color: #0e1117;
 }
 
-/* --- MINIMALIST CHEVRON NAV --- */
-.nav-link button {
-    background-color: transparent !important;
-    border: none !important;
-    color: #ffffff !important;
-    font-size: 32px !important; /* Larger for the chevron look */
-    font-weight: 200 !important;
-    padding: 0 !important;
-    opacity: 0.6;
-    transition: all 0.2s ease !important;
-}
-
-.nav-link button:hover {
-    color: #f36e2e !important;
-    opacity: 1;
-    transform: scale(1.1);
-}
-
 /* --- PROGRESS BAR COLORING --- */
 div[data-testid="stProgress"] > div > div > div > div {
     background-color: #f36e2e !important;
@@ -80,20 +62,19 @@ div.stButton > button:first-child:hover {
 }
 
 /* --- THE CUSTOM SETTINGS FLEXBOX ENGINE --- */
-/* The expander inside the 'Custom Settings' container */
 [data-testid="stExpander"] div[role="region"] > div {
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: wrap !important;
-    gap: 30px !important; /* Padding between image and controls */
+    gap: 30px !important;
     justify-content: flex-start !important;
     align-items: flex-start !important;
 }
 
 /* The Image Container (Column 1) */
 .preview-image-box {
-    flex: 1 1 500px !important; /* Minimum width of 500px before wrapping */
-    max-width: 500px !important; /* Never exceeds 500px wide */
+    flex: 1 1 500px !important;
+    max-width: 500px !important;
     display: flex !important;
     justify-content: center !important;
     align-items: center !important;
@@ -105,26 +86,27 @@ div.stButton > button:first-child:hover {
 
 /* The Controls Container (Column 2) */
 .preview-controls-box {
-    flex: 1 1 250px !important; /* Minimum width of 250px */
-    max-width: 350px !important; /* Control panel width */
+    flex: 1 1 250px !important;
+    max-width: 350px !important;
     margin-top: 10px;
 }
 
-/* --- MINIMALIST NAV ARROWS --- */
+/* --- MINIMALIST CHEVRON NAV --- */
 .nav-link button {
     background-color: transparent !important;
     border: none !important;
-    color: #888 !important;
-    font-size: 18px !important;
-    font-weight: 400 !important;
+    color: #ffffff !important;
+    font-size: 32px !important; /* Larger for the chevron look */
+    font-weight: 200 !important;
     padding: 0 !important;
-    margin: 0 !important;
-    transition: color 0.2s ease !important;
+    opacity: 0.6;
+    transition: all 0.2s ease !important;
 }
 
 .nav-link button:hover {
     color: #f36e2e !important;
-    background-color: transparent !important;
+    opacity: 1;
+    transform: scale(1.1);
 }
 
 /* Center the image info text */
@@ -140,4 +122,3 @@ div.stButton > button:first-child:hover {
 .card-label { font-size: 16px; font-weight: 700; color: white; }
 .card-subline { font-size: 13px; color: #888; margin-top: 4px; }
 .stTabs [aria-selected="true"] { color: #f36e2e !important; border-bottom: 2px solid #f36e2e !important; }
-.stButton>button { background-color: #f36e2e; color: white; border-radius: 8px; font-weight: bold; }

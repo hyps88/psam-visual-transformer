@@ -22,11 +22,13 @@ def calculate_ratio(w, h):
 def sanitize_filename(name):
     return re.sub(r'[^a-zA-Z0-9]', '_', name)
 
-def get_ratio_svg(ratio_str):
+# FIXED: Function name now matches the call below
+def get_ratio_icon_svg(ratio_str):
     """ Generates a small visual rectangle for the UI """
     try:
-        r_w, r_h = map(int, ratio_str.split(":"))
-        # Scale for 50px box
+        if ":" not in ratio_str: r_w, r_h = 1, 1
+        else: r_w, r_h = map(int, ratio_str.split(":"))
+        
         max_dim = 40
         if r_w > r_h:
             w, h = max_dim, int(max_dim * (r_h / r_w))
@@ -41,28 +43,32 @@ if 'specs' not in st.session_state:
         with open("transformer_specs.json", "r") as f:
             st.session_state.specs = json.load(f)['formats']
     else:
+        # Fallback default if file is missing
         st.session_state.specs = []
 
 # --- SIDEBAR: INPUT & SETTINGS ---
 st.sidebar.title("VISUAL TRANSFORMER")
 st.sidebar.caption("PSAM COMMAND CENTER // 2026")
 
-# Bulk Upload
 uploaded_files = st.sidebar.file_uploader("IMPORT MASTER IMAGES", type=['jpg', 'jpeg', 'png', 'webp'], accept_multiple_files=True)
-
 project_name = st.sidebar.text_input("PROJECT NAME", value="PSAM_Marketing_Batch")
 
 st.sidebar.divider()
 st.sidebar.subheader("SQUOOSH SETTINGS")
 global_quality = st.sidebar.slider("GLOBAL QUALITY OVERRIDE", 10, 100, 80)
-resampling_method = st.sidebar.selectbox("RESAMPLING ENGINE", ["LANCZOS (High Quality)", "BILINEAR (Fast)", "BICUBIC (Smooth)"])
+resampling_map = {
+    "LANCZOS (High Quality)": Image.Resampling.LANCZOS,
+    "BILINEAR (Fast)": Image.Resampling.BILINEAR,
+    "BICUBIC (Smooth)": Image.Resampling.BICUBIC
+}
+resampling_choice = st.sidebar.selectbox("RESAMPLING ENGINE", list(resampling_map.keys()))
 
 # --- MAIN INTERFACE ---
 tab_main, tab_manage = st.tabs(["TRANSFORMER", "MANAGE FORMATS"])
 
 with tab_main:
     if not uploaded_files:
-        st.info("Please upload one or more master images in the sidebar to begin.")
+        st.info("Import master images in the sidebar to begin.")
     else:
         st.write(f"### Select Target Formats")
         cols = st.columns(3)
@@ -78,13 +84,14 @@ with tab_main:
                     with col_icon:
                         st.markdown(get_ratio_icon_svg(spec['ratio']), unsafe_allow_html=True)
                     with col_check:
-                        if st.checkbox(f"{spec['label']} ({spec['width']}x{spec['height']})", value=True, key=f"chk_{spec['label']}"):
+                        if st.checkbox(f"{spec['label']}", value=True, key=f"chk_{spec['label']}"):
                             selected_formats.append(spec)
 
         if st.button("🚀 GENERATE ALL ASSETS"):
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
-                for uploaded_file in uploaded_files:
+                progress_bar = st.progress(0)
+                for idx, uploaded_file in enumerate(uploaded_files):
                     img = Image.open(uploaded_file)
                     if img.mode != 'RGB': img = img.convert('RGB')
                     
@@ -92,21 +99,22 @@ with tab_main:
                     
                     for spec in selected_formats:
                         # Smart-Crop Logic
-                        res = ImageOps.fit(img, (spec['width'], spec['height']), Image.Resampling.LANCZOS)
+                        res = ImageOps.fit(img, (spec['width'], spec['height']), resampling_map[resampling_choice])
                         
                         safe_label = sanitize_filename(spec['label'])
-                        f_name = f"{orig_name}_{safe_label}.{spec['ext'].lower()}"
+                        f_name = f"PSAM_{safe_label}.{spec['ext'].lower()}"
                         
                         img_io = io.BytesIO()
-                        # Use global quality override if set
-                        quality = global_quality if global_quality != 80 else spec['quality']
-                        
+                        # JPEG/WebP logic
                         if spec['ext'].upper() == "JPEG":
-                            res.convert("RGB").save(img_io, "JPEG", quality=quality)
+                            res.save(img_io, "JPEG", quality=global_quality)
                         else:
-                            res.save(img_io, "WEBP", quality=quality)
+                            res.save(img_io, "WEBP", quality=global_quality)
                         
+                        # Save inside folder named after original file
                         zip_file.writestr(f"{orig_name}/{f_name}", img_io.getvalue())
+                    
+                    progress_bar.progress((idx + 1) / len(uploaded_files))
             
             st.success(f"Processing Complete! Generated {len(uploaded_files) * len(selected_formats)} images.")
             st.download_button(
@@ -118,19 +126,18 @@ with tab_main:
 
 with tab_manage:
     st.write("### Format Library")
-    # CRUD Operations
     for idx, spec in enumerate(st.session_state.specs):
         with st.expander(f"{spec['category']}: {spec['label']} ({spec['ratio']})"):
             c1, c2, c3, c4 = st.columns(4)
             new_label = c1.text_input("Label", spec['label'], key=f"l_{idx}")
-            new_w = c2.number_input("Width", value=spec['width'], key=f"w_{idx}")
-            new_h = c3.number_input("Height", value=spec['height'], key=f"h_{idx}")
+            new_w = c2.number_input("Width", value=int(spec['width']), key=f"w_{idx}")
+            new_h = c3.number_input("Height", value=int(spec['height']), key=f"h_{idx}")
             new_ext = c4.selectbox("Format", ["WebP", "JPEG"], index=0 if spec['ext'] == "WebP" else 1, key=f"e_{idx}")
             
             if st.button("Update", key=f"upd_{idx}"):
                 st.session_state.specs[idx].update({
-                    "label": new_label, "width": new_w, "height": new_h, 
-                    "ext": new_ext, "ratio": calculate_ratio(new_w, new_h)
+                    "label": new_label, "width": int(new_w), "height": int(new_h), 
+                    "ext": new_ext, "ratio": calculate_ratio(int(new_w), int(new_h))
                 })
                 st.rerun()
             if st.button("Delete", key=f"del_{idx}", type="secondary"):

@@ -45,9 +45,9 @@ st.markdown(f"""
     /* THE UNIFIED DROP ZONE */
     [data-testid="stFileUploader"] {{
         background-color: #16181a !important;
-        padding: 40px 20px !important;
+        padding: 60px 20px !important;
         border-radius: 20px !important;
-        border: 2px dashed #333 !important; /* Clean dashed line */
+        border: 2px dashed #333 !important;
         transition: 0.3s ease;
         display: flex;
         flex-direction: column;
@@ -57,11 +57,11 @@ st.markdown(f"""
     }}
     [data-testid="stFileUploader"]:hover {{ border-color: {ACCENT_COLOR} !important; }}
     
-    /* THE TITLE: Move inside and style as Helvetica */
+    /* THE TITLE: Helvetica Bold */
     [data-testid="stFileUploader"] label {{
         display: block !important;
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
-        font-size: 28px !important; /* Slightly smaller as requested */
+        font-size: 28px !important;
         font-weight: 700 !important;
         color: #eee !important;
         text-align: center !important;
@@ -69,7 +69,7 @@ st.markdown(f"""
         width: 100% !important;
     }}
 
-    /* RECTIFY BROWSE BUTTON & FUNCTIONALITY */
+    /* RECTIFY BROWSE BUTTON */
     [data-testid="stFileUploader"] section {{
         background: transparent !important;
         display: flex !important;
@@ -77,7 +77,7 @@ st.markdown(f"""
         align-items: center !important;
     }}
     
-    /* Hide the 'limit 200MB' and default text while keeping the button */
+    /* Hide default limit/text strings */
     [data-testid="stFileUploader"] section > div {{ display: none !important; }}
     
     [data-testid="stFileUploader"] section button {{
@@ -90,17 +90,6 @@ st.markdown(f"""
         font-size: 13px !important;
     }}
     [data-testid="stFileUploader"] section button:hover {{ border-color: {ACCENT_COLOR} !important; color: white !important; }}
-
-    /* GALLERY CARDS */
-    .preview-card {{
-        background-color: #1a1c1e;
-        border-radius: 12px;
-        padding: 20px;
-        border: 1px solid #2b2b2b;
-        margin-top: 20px;
-        display: flex;
-        align-items: center;
-    }}
 
     /* TABS & BUTTONS */
     .stTabs [data-baseweb="tab-list"] {{ gap: 40px; border-bottom: 1px solid #222; margin-bottom: 30px; }}
@@ -141,23 +130,12 @@ tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
 with tab_run:
     # 4.1 FUNCTIONAL DROP ZONE
-    # Label is now the Title, placed inside the container via CSS
     uploaded_files = st.file_uploader("Drag & Drop Images Here", type=['jpg', 'png', 'webp'], accept_multiple_files=True)
 
     if uploaded_files:
-        st.write(" ")
-        st.markdown("### Gallery Preview")
-        for up_file in uploaded_files:
-            with st.container():
-                st.markdown('<div class="preview-card">', unsafe_allow_html=True)
-                p_col1, p_col2 = st.columns([1, 5])
-                with p_col1:
-                    st.image(up_file, width=150)
-                with p_col2:
-                    st.markdown(f"**{up_file.name}**")
-                    st.markdown(f"<span style='color: #666;'>{up_file.size / 1024 / 1024:.2f} MB</span>", unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-
+        # Gallery Preview removed as requested
+        st.markdown(f"**Files Uploaded:** {len(uploaded_files)}")
+        
         st.markdown('<div class="discreet-link">', unsafe_allow_html=True)
         t_col1, t_col2, _ = st.columns([1, 1, 8])
         with t_col1:
@@ -196,6 +174,7 @@ with tab_run:
                         img = Image.open(up_file).convert("RGB")
                         base_n = sanitize(os.path.splitext(up_file.name)[0])
                         for spec in selected_formats:
+                            # Use high-quality Lanczos resampling
                             res = ImageOps.fit(img, (spec['width'], spec['height']), Image.Resampling.LANCZOS)
                             f_ext = spec.get('ext', 'WebP').upper()
                             f_name = f"PSAM_{sanitize(spec['label'])}.{f_ext.lower()}"

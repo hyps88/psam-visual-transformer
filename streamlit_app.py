@@ -136,6 +136,7 @@ with tab_run:
                 total_steps = len(uploaded_files) * len(selected_formats)
                 current_step = 0
                 
+                # Progress Indicators
                 progress_bar = st.progress(0)
                 status_text = st.empty()
 
@@ -146,7 +147,7 @@ with tab_run:
                         for sp in selected_formats:
                             # Update Progress
                             current_step += 1
-                            progress_val = int((current_step / total_steps) * 100)
+                            progress_val = min(int((current_step / total_steps) * 100), 100)
                             progress_bar.progress(progress_val)
                             status_text.text(f"Processing: {bn} — {sp['label']}")
 
@@ -158,12 +159,12 @@ with tab_run:
                             fn = f"PSAM_{bn}_{sanitize(sp['label'])}_{sp['width']}x{sp['height']}.{ext_v.lower()}"
                             buf = io.BytesIO()
                             
-                            # OPTIMIZED SAVING LOGIC
+                            # CORRECTED SAVING LOGIC
                             if ext_v == "JPEG":
-                                # 100 quality JPEG + subsampling=0 (Maximum Fidelity)
-                                res.save(buf, format="JPEG", quality=q_v, subsampling=0 if q_v == 100 else 'outer', optimize=True)
+                                # Fixed subsampling TypeError (using integer 0 for 4:4:4)
+                                res.save(buf, format="JPEG", quality=q_v, subsampling=0 if q_v == 100 else 2, optimize=True)
                             else:
-                                # WebP Lossless Optimization: method=4 for better memory/speed balance
+                                # Memory-safe WebP Lossless (Method 4)
                                 res.save(buf, format="WEBP", quality=q_v, lossless=(q_v == 100), method=4)
                             
                             zf.writestr(fn, buf.getvalue())

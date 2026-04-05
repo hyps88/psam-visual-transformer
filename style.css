@@ -4,75 +4,73 @@
     background-color: #0e1117;
 }
 
-/* --- DRAG & DROP (Untouched as requested) --- */
+/* --- RESTORED: PERFECT DROP ZONE --- */
 [data-testid="stFileUploader"] {
-    background-color: transparent !important;
+    background-color: transparent !important; /* No background */
     padding: 60px 20px !important;
     border-radius: 20px !important;
     border: 2px dashed #333 !important;
 }
+
+[data-testid="stFileUploader"]:hover { border-color: #f36e2e !important; }
+
+/* The 58px Title */
 [data-testid="stFileUploaderDropzoneInstructions"] div {
     font-size: 58px !important;
     font-weight: 700 !important;
     color: #eee !important;
     text-align: center !important;
+    line-height: 1.1 !important;
 }
 
-/* --- CATEGORY HEADERS --- */
-.cat-header {
-    font-size: 11px;
-    font-weight: 800;
-    color: #444;
-    letter-spacing: 3px;
-    margin-top: 50px !important;
-    margin-bottom: 20px !important;
-    text-transform: uppercase;
-    border-bottom: 1px solid #222;
-    padding-bottom: 8px;
+/* Force centering of all internal elements */
+[data-testid="stFileUploader"] section {
+    background-color: transparent !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
-/* --- THE CARD ENGINE --- */
-/* Target the container border wrapper */
+/* Hide small metadata to keep it museum-clean */
+[data-testid="stFileUploaderDropzoneInstructions"] small {
+    display: none !important;
+}
+
+/* --- 2-COLUMN CARD GRID --- */
 [data-testid="stVerticalBlockBorderWrapper"] {
     background-color: #1a1c1e !important;
     border-radius: 12px !important;
     border: 1px solid #2b2b2b !important;
-    padding: 15px !important;
+    padding: 18px !important;
     margin-bottom: 10px;
-    transition: 0.2s ease;
 }
 
 .card-label {
     font-size: 16px !important;
     font-weight: 700 !important;
     color: white !important;
-    margin-bottom: 4px;
 }
 
 .card-subline {
-    font-size: 12px !important;
+    font-size: 13px !important;
     color: #888 !important;
-    font-weight: 500;
+    margin-top: 4px;
 }
 
-/* Align Checkbox: Pinned to far right */
-.stCheckbox {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 10px;
+/* Category Headers */
+.cat-header {
+    font-size: 11px;
+    font-weight: 800;
+    color: #444;
+    letter-spacing: 3px;
+    margin-top: 50px !important;
+    margin-bottom: 25px !important;
+    text-transform: uppercase;
+    border-bottom: 1px solid #222;
+    padding-bottom: 8px;
 }
 
-/* --- RESPONSIVE GRID (3 → 2 → 1) --- */
-@media (max-width: 1400px) {
-    [data-testid="column"] {
-        flex: 1 1 45% !important;
-        min-width: 45% !important;
-    }
-}
-
-@media (max-width: 800px) {
-    [data-testid="column"] {
-        flex: 1 1 100% !important;
-        min-width: 100% !important;
-    }
-}
+/* Tabs & Buttons */
+.stTabs [aria-selected="true"] { color: #f36e2e !important; border-bottom: 2px solid #f36e2e !important; }
+.stButton>button { background-color: #f36e2e; color: white; border-radius: 8px; font-weight: bold; height: 3.5em; }

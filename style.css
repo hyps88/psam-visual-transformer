@@ -76,3 +76,56 @@
 .card-subline { font-size: 13px; color: #888; margin-top: 4px; }
 .stTabs [aria-selected="true"] { color: #f36e2e !important; border-bottom: 2px solid #f36e2e !important; }
 .stButton>button { background-color: #f36e2e; color: white; border-radius: 8px; font-weight: bold; }
+
+
+/* --- THE POTHOS BUDDY ANIMATIONS --- */
+
+@keyframes sway {
+    0% { transform: rotate(-2deg) translateX(0px); }
+    50% { transform: rotate(2deg) translateX(5px); }
+    100% { transform: rotate(-2deg) translateX(0px); }
+}
+
+@keyframes flutter {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(1.1) skewX(2deg); }
+}
+
+@keyframes crazy-growth {
+    0% { filter: hue-rotate(0deg) scale(1); }
+    50% { filter: hue-rotate(90deg) scale(1.05); }
+    100% { filter: hue-rotate(0deg) scale(1); }
+}
+
+@keyframes cyclist-pass {
+    0% { left: -100px; opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { left: 110%; opacity: 0; }
+}
+
+#pothos-container {
+    position: fixed;
+    top: 0;
+    right: 50px;
+    width: 120px;
+    z-index: 9999;
+    pointer-events: none;
+    transition: filter 0.8s ease; /* For the diffuse color change */
+}
+
+.pothos-vine {
+    width: 100%;
+    animation: sway 4s ease-in-out infinite;
+    transform-origin: top center;
+}
+
+.state-flutter { animation: flutter 0.2s ease-in-out infinite !important; }
+.state-crazy { animation: crazy-growth 0.3s linear infinite !important; }
+
+#cyclist-buddy {
+    position: fixed;
+    bottom: 20px;
+    width: 60px;
+    animation: cyclist-pass 4s linear forwards;
+}

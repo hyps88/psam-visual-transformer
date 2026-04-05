@@ -4,53 +4,66 @@
     background-color: #0e1117;
 }
 
-/* --- THE DRAG & DROP BOX: CENTERED & GIANT --- */
+/* --- THE TRANSPARENT DROP ZONE --- */
 [data-testid="stFileUploader"] {
-    background-color: none !important;
+    background-color: transparent !important; /* No background */
     padding: 60px 20px !important;
     border-radius: 20px !important;
-    border: 3px dashed #333 !important;
+    border: 2px dashed #333 !important;
 }
 
 [data-testid="stFileUploader"]:hover { border-color: #f36e2e !important; }
 
-[data-testid="stFileUploaderDropzone"] {
-    background-color: none !important;
-}
-
-
-
-
-
-/* The "Inside" Title */
+/* The "Inside" Title: 58px as requested */
 [data-testid="stFileUploaderDropzoneInstructions"] div {
-    font-size: 58px !important; /* Your specific 58px request */
+    font-size: 58px !important;
     font-weight: 700 !important;
     color: #eee !important;
     text-align: center !important;
     line-height: 1.1 !important;
 }
 
-/* Centering the Browse Button */
+/* Ensure the internal section is also transparent */
 [data-testid="stFileUploader"] section {
+    background-color: transparent !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
-    justify-content: center !important;
 }
 
-/* Hide the small "Limit 200MB" text */
-[data-testid="stFileUploaderDropzoneInstructions"] small {
-    display: none !important;
+/* --- RESPONSIVE VERTICAL SECTIONS --- */
+.cat-header {
+    font-size: 12px;
+    font-weight: 800;
+    color: #555;
+    letter-spacing: 4px;
+    margin-top: 60px !important;
+    margin-bottom: 30px !important;
+    text-transform: uppercase;
+    border-bottom: 1px solid #222;
+    padding-bottom: 10px;
 }
 
-/* --- FORMAT CARDS: CLEAN & SPACIOUS --- */
-[data-testid="stVerticalBlockBorderWrapper"] {
+/* --- THE FLEX CARD --- */
+.format-card {
     background-color: #1a1c1e;
-    border-radius: 12px;
+    border-radius: 14px;
     border: 1px solid #2b2b2b;
-    padding: 15px !important;
-    margin-bottom: 12px;
+    padding: 20px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Push checkbox to the right */
+    gap: 20px;
+    transition: 0.2s ease-in-out;
+}
+
+.format-card:hover { border-color: #444; }
+
+.card-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
 }
 
 .format-label {
@@ -59,23 +72,12 @@
     color: white;
 }
 
-/* The Subline: Bigger & Muted */
 .format-subline {
     font-size: 14px !important; 
     color: #888;
-    margin-top: 6px;
+    margin-top: 4px;
     font-weight: 500;
 }
 
-/* Category Headers */
-.cat-header {
-    font-size: 11px;
-    font-weight: 800;
-    color: #444;
-    letter-spacing: 3px;
-    margin-top: 40px !important;
-    text-transform: uppercase;
-}
-
-/* Tab Styling */
-.stTabs [aria-selected="true"] { color: #f36e2e !important; border-bottom: 2px solid #f36e2e !important; }
+/* Discreet Checkbox Styling */
+.stCheckbox { margin-bottom: 0 !important; }

@@ -1,10 +1,10 @@
-/* Global Typography */
+/* Global Helvetica */
 .stApp {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
     background-color: #0e1117;
 }
 
-/* --- THE TRANSPARENT DROP ZONE (Unchanged) --- */
+/* --- DRAG & DROP (Untouched as requested) --- */
 [data-testid="stFileUploader"] {
     background-color: transparent !important;
     padding: 60px 20px !important;
@@ -18,7 +18,7 @@
     text-align: center !important;
 }
 
-/* --- RESPONSIVE GRID HELPERS --- */
+/* --- CATEGORY HEADERS --- */
 .cat-header {
     font-size: 11px;
     font-weight: 800;
@@ -31,17 +31,17 @@
     padding-bottom: 8px;
 }
 
-/* --- THE CARD CONTAINER --- */
-/* Target the Streamlit container with border=True */
-[data-testid="stElementContainer"] > div:has(div.card-internal) {
+/* --- THE CARD ENGINE --- */
+/* Target the container border wrapper */
+[data-testid="stVerticalBlockBorderWrapper"] {
     background-color: #1a1c1e !important;
     border-radius: 12px !important;
     border: 1px solid #2b2b2b !important;
     padding: 15px !important;
+    margin-bottom: 10px;
     transition: 0.2s ease;
 }
 
-/* Internal Card Text Styling */
 .card-label {
     font-size: 16px !important;
     font-weight: 700 !important;
@@ -50,26 +50,29 @@
 }
 
 .card-subline {
-    font-size: 13px !important;
+    font-size: 12px !important;
     color: #888 !important;
     font-weight: 500;
 }
 
-/* Hide the native checkbox label to keep it clean */
-.stCheckbox label {
-    display: none !important;
+/* Align Checkbox: Pinned to far right */
+.stCheckbox {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
 }
 
-/* Responsive Column Tweaks */
-@media (max-width: 1200px) {
+/* --- RESPONSIVE GRID (3 → 2 → 1) --- */
+@media (max-width: 1400px) {
     [data-testid="column"] {
-        flex: 1 1 45% !important; /* 2 columns */
+        flex: 1 1 45% !important;
         min-width: 45% !important;
     }
 }
-@media (max-width: 768px) {
+
+@media (max-width: 800px) {
     [data-testid="column"] {
-        flex: 1 1 100% !important; /* 1 column */
+        flex: 1 1 100% !important;
         min-width: 100% !important;
     }
 }

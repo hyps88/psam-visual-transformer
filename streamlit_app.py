@@ -50,7 +50,6 @@ load_css('style.css')
 # --- 3. INTERFACE ---
 tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
-# --- TAB 1: TRANSFORMER ---
 with tab_run:
     uploaded_files = st.file_uploader("Drag & Drop", type=['jpg', 'png', 'webp'], accept_multiple_files=True, label_visibility="collapsed")
 
@@ -64,16 +63,26 @@ with tab_run:
 
         if cust_active:
             with st.container(border=True):
+                lock_ar = st.checkbox("Force Original Aspect Ratio", value=False)
                 c1, c2, c3, c4 = st.columns([2, 2, 2, 3])
                 cust_w = c1.number_input("Width", value=1080, key="cust_w")
-                cust_h = c2.number_input("Height", value=1080, key="cust_h")
+                
+                orig_img = Image.open(uploaded_files[0])
+                orig_w, orig_h = orig_img.size
+                
+                if lock_ar:
+                    cust_h = int(cust_w * (orig_h / orig_w))
+                    c2.number_input("Height (Locked)", value=cust_h, disabled=True, key="cust_h_locked")
+                else:
+                    cust_h = c2.number_input("Height", value=1080, key="cust_h")
+                
                 cust_ext = c3.selectbox("Format", ["WebP", "JPEG"], key="cust_ext")
-                cust_q = c4.slider("Export Quality", 10, 100, 95, key="cust_q")
+                # Quality 100 = Lossless
+                cust_q = c4.slider("Export Quality (100 = Lossless/Print)", 10, 100, 95, key="cust_q")
 
                 with st.expander("👁️ Preview & Alignment Controls", expanded=False):
                     aspect = cust_w / cust_h
                     sw, sh = (500, int(500/aspect)) if aspect > 1 else (int(500*aspect), 500)
-                    
                     pcol_img, pcol_ctrl = st.columns([1, 1])
                     with pcol_ctrl:
                         preset = st.radio("Quick Presets", ["Center", "Top", "Bottom", "Left", "Right", "Manual"], horizontal=True)
@@ -83,11 +92,9 @@ with tab_run:
                         elif preset == "Left": dx, dy = 0, 50
                         elif preset == "Right": dx, dy = 100, 50
                         else: dx, dy = 50, 50
-
                         mx = st.slider("Left ← Alignment → Right", 0, 100, dx)
                         my = st.slider("Top ← Alignment → Bottom", 0, 100, dy)
                         final_cx, final_cy = mx / 100, my / 100
-
                     with pcol_img:
                         prev_img = Image.open(uploaded_files[0]).convert("RGB")
                         crop = ImageOps.fit(prev_img, (cust_w, cust_h), method=Image.Resampling.LANCZOS, centering=(final_cx, final_cy))
@@ -95,11 +102,8 @@ with tab_run:
             
             selected_formats.append({"label": "Custom", "width": cust_w, "height": cust_h, "ext": cust_ext, "quality": cust_q, "cx": final_cx, "cy": final_cy})
 
-        # 3.2 TEMPLATES & LOSSLESS TOGGLES
         st.write(" ")
         show_templates = st.toggle("Templates", value=False)
-        # New Toggle for Lossless Export
-        disable_compression = st.toggle("Lossless Export (Print Mode)", value=False)
 
         if show_templates:
             cats = sorted(list(set(s.get('category', 'OTHER') for s in st.session_state.specs)))
@@ -135,26 +139,22 @@ with tab_run:
                             cx, cy = sp.get('cx', 0.5), sp.get('cy', 0.5)
                             res = ImageOps.fit(img, (sp['width'], sp['height']), method=Image.Resampling.LANCZOS, centering=(cx, cy))
                             ext = sp.get('ext', 'WebP').upper()
-                            
-                            # Determine final quality based on toggle
-                            final_q = 100 if disable_compression else sp.get('quality', 95)
+                            q_val = sp.get('quality', 95)
                             
                             fn = f"PSAM_{bn}_{sanitize(sp['label'])}_{sp['width']}x{sp['height']}.{ext.lower()}"
                             buf = io.BytesIO()
                             
-                            # High fidelity save logic
+                            # INTEGRATED LOSSLESS LOGIC
                             if ext == "JPEG":
-                                # subsampling=0 (4:4:4) provides max color detail for print
-                                res.save(buf, format="JPEG", quality=final_q, subsampling=0 if disable_compression else 'outer', optimize=True)
+                                # 100 quality JPEG + subsampling=0 is the maximum possible fidelity
+                                res.save(buf, format="JPEG", quality=q_val, subsampling=0 if q_val == 100 else 'outer', optimize=True)
                             else:
-                                # Lossless WebP if toggle is ON and quality is 100
-                                res.save(buf, format="WEBP", quality=final_q, lossless=disable_compression, method=6)
-                                
+                                # 100 quality WebP triggers True Lossless engine
+                                res.save(buf, format="WEBP", quality=q_val, lossless=(q_val == 100), method=6)
                             zf.writestr(fn, buf.getvalue())
-                st.success("Batch Generated (Lossless Active)" if disable_compression else "Batch Generated."); st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
+                st.success("Batch Generated."); st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
 
 # --- TAB 2 & 3: FORMATS & SETTINGS [LOCKED] ---
-# ... (Full tabs preserved as per last update) ...
 with tab_fmt:
     st.write("### Museum Standards Library")
     if st.session_state.specs:

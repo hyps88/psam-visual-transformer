@@ -5,7 +5,7 @@ from datetime import datetime
 
 # --- 1. SETTINGS & THEME ---
 ACCENT_COLOR = "#f36e2e"
-st.set_page_config(page_title="Visual Transformer", page_icon="🖼️", layout="wide")
+st.set_page_config(page_title="Visual Transformer", layout="wide")
 
 def save_specs_to_disk():
     """ Keeps your museum standards persistent across refreshes """
@@ -16,15 +16,25 @@ st.markdown(f"""
     <style>
     .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0e1117; }}
     
-    /* CLEAN TABS: Minimalist top menu */
+    /* Category Headers: Tightened Spacing */
+    .cat-header {{
+        font-size: 11px;
+        font-weight: 800;
+        color: #444;
+        letter-spacing: 3px;
+        margin-top: 20px !important; 
+        margin-bottom: 20px !important;
+        text-transform: uppercase;
+    }}
+
+    /* Minimalist Top Menu */
     .stTabs [data-baseweb="tab-list"] {{
         gap: 40px;
         border-bottom: 1px solid #222;
-        margin-bottom: 40px;
+        margin-bottom: 30px;
     }}
     .stTabs [data-baseweb="tab"] {{
         height: 50px;
-        white-space: pre-wrap;
         background-color: transparent !important;
         border: none !important;
         color: #555 !important;
@@ -36,43 +46,55 @@ st.markdown(f"""
         border-bottom: 2px solid {ACCENT_COLOR} !important;
     }}
 
-    /* DISCREET SELECTION TOOLS */
+    /* Discreet Selection Tools */
     .discreet-btn button {{
         background: transparent !important;
         border: none !important;
-        color: #666 !important;
-        font-size: 11px !important;
+        color: #555 !important;
+        font-size: 10px !important;
         text-decoration: underline;
         padding: 0 !important;
         height: auto !important;
     }}
     .discreet-btn button:hover {{ color: white !important; }}
 
-    /* FOCAL DROP ZONE: The focal point */
+    /* Simplified Drag & Drop Zone */
     [data-testid="stFileUploader"] {{
-        background-color: #16181a;
-        padding: 50px 20px;
-        border-radius: 20px;
-        border: 2px dashed #333;
-        transition: 0.3s;
-        text-align: center;
+        background-color: transparent;
+        padding: 40px 10px;
+        border-radius: 12px;
+        border: 1px dashed #666;
     }}
-    [data-testid="stFileUploader"]:hover {{ border-color: {ACCENT_COLOR}; background-color: #1c1e21; }}
     
-    /* Remove the default 'Browse files' button text style to focus on the label */
-    [data-testid="stFileUploader"] section button {{
-        background-color: {ACCENT_COLOR} !important;
-        margin-top: 20px;
+    /* Hide the default Streamlit uploader icon and secondary text */
+    [data-testid="stFileUploader"] section {{
+        padding: 0 !important;
+    }}
+    [data-testid="stFileUploader"] label {{
+        display: block;
+        text-align: center;
+        font-size: 24px !important;
+        color: #888 !important;
+        font-weight: 400 !important;
+        margin-bottom: 0 !important;
+    }}
+    
+    /* Center and style the internal button */
+    [data-testid="stFileUploader"] button {{
+        background-color: #333 !important;
+        color: white !important;
+        border: none !important;
+        margin: 20px auto 0 auto !important;
+        display: block !important;
     }}
 
-    .cat-header {{
-        font-size: 12px;
-        font-weight: 800;
-        color: #444;
-        letter-spacing: 3px;
-        margin-top: 50px !important;
-        margin-bottom: 25px !important;
-        text-transform: uppercase;
+    /* Action Buttons */
+    .stButton>button {{
+        background-color: {ACCENT_COLOR};
+        color: white;
+        border-radius: 6px;
+        border: none;
+        font-weight: bold;
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -107,12 +129,10 @@ if 'proj_name' not in st.session_state:
 tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
 with tab_run:
-    # FOCUS: Drag & Drop Zone
-    uploaded_files = st.file_uploader("📥 Drag & Drop Images Here", type=['jpg', 'png', 'webp'], accept_multiple_files=True)
+    # CLEAN DROP ZONE
+    uploaded_files = st.file_uploader("Drag & Drop Images Here", type=['jpg', 'png', 'webp'], accept_multiple_files=True, label_visibility="visible")
 
-    if not uploaded_files:
-        st.write(" ") # Spacer
-    else:
+    if uploaded_files:
         # Discreet Selection Tools
         st.markdown('<div class="discreet-btn">', unsafe_allow_html=True)
         t_col1, t_col2, _ = st.columns([0.8, 1, 8])
@@ -126,7 +146,6 @@ with tab_run:
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Content Grid
         mcol1, mcol2, mcol3 = st.columns(3)
         cats = {"SOCIAL": mcol1, "WEB": mcol2, "EMAIL": mcol3}
         selected_formats = []
@@ -145,7 +164,7 @@ with tab_run:
                             st.markdown(f'<span style="color: #444; font-size: 10px;">{spec.get("ext", "WebP").upper()} @ {spec.get("quality", 85)}%</span>', unsafe_allow_html=True)
 
         st.divider()
-        if st.button("🚀 GENERATE ASSETS", use_container_width=True):
+        if st.button("GENERATE ASSETS", use_container_width=True):
             if selected_formats:
                 zip_buffer = io.BytesIO()
                 with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
@@ -153,7 +172,6 @@ with tab_run:
                         img = Image.open(up_file).convert("RGB")
                         base_n = sanitize(os.path.splitext(up_file.name)[0])
                         for spec in selected_formats:
-                            # Highest Quality Lanczos
                             res = ImageOps.fit(img, (spec['width'], spec['height']), Image.Resampling.LANCZOS)
                             f_ext = spec.get('ext', 'WebP').upper()
                             f_name = f"PSAM_{sanitize(spec['label'])}.{f_ext.lower()}"
@@ -161,13 +179,13 @@ with tab_run:
                             res.save(img_io, format=f_ext, quality=spec.get('quality', 85))
                             zip_file.writestr(f"{base_n}/{f_name}", img_io.getvalue())
                 
-                st.success(f"Generated {len(uploaded_files)} Master Batch.")
-                st.download_button("📂 DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
+                st.success(f"Generated {len(uploaded_files)} images.")
+                st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
 
 with tab_fmt:
     st.write("### Permanent Museum Standards")
     for idx, spec in enumerate(st.session_state.specs):
-        with st.expander(f"✎ {spec['category']}: {spec['label']}"):
+        with st.expander(f"{spec['category']}: {spec['label']}"):
             l = st.text_input("Label", spec['label'], key=f"edit_l_{idx}")
             c1, c2 = st.columns(2)
             w = c1.number_input("Width", value=int(spec['width']), key=f"edit_w_{idx}")
@@ -201,14 +219,6 @@ with tab_fmt:
 with tab_set:
     st.write("### Workflow Settings")
     st.session_state.proj_name = st.text_input("Project Export Name", value=st.session_state.proj_name)
-    
     st.divider()
-    st.write("### Backup & Maintenance")
-    st.caption("Download your library as a backup JSON file.")
     json_data = json.dumps({"formats": st.session_state.specs}, indent=4)
-    st.download_button(
-        label="💾 EXPORT LIBRARY (JSON)",
-        data=json_data,
-        file_name="transformer_specs_backup.json",
-        mime="application/json"
-    )
+    st.download_button(label="EXPORT LIBRARY (JSON)", data=json_data, file_name="transformer_specs_backup.json", mime="application/json")

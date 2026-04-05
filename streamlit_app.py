@@ -4,92 +4,86 @@ import json, os, math, re, io, zipfile
 from datetime import datetime
 
 # --- CONFIG & STYLING ---
-ACCENT_COLOR = "#f36e2e"
+ACCENT_COLOR = "#f36e2e"       # PSAM Orange
+SECONDARY_BORDER = "#444444"    # Muted Grey for unselected
 BG_CARD = "#1a1c1e"
 BG_ACTIVE = "#25282c"
 
 st.set_page_config(page_title="Visual Transformer", page_icon="🖼️", layout="wide")
 
-# --- CSS: THE "GHOST BUTTON" ENGINE ---
-# This styles the cards and makes the overlay buttons invisible but clickable
+# --- CSS: THE "SOLID TILE" ENGINE ---
 st.markdown(f"""
     <style>
     .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0e1117; }}
     
-    /* Category Headers: Deep Spacing & High-End Typography */
+    /* Category Headers: Pro Spacing */
     .category-header {{
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 800;
-        color: #444 !important;
-        letter-spacing: 5px;
-        margin-top: 120px !important; 
-        margin-bottom: 50px !important;
+        color: #666 !important;
+        letter-spacing: 4px;
+        margin-top: 100px !important; 
+        margin-bottom: 40px !important;
         text-transform: uppercase;
         border-bottom: 1px solid #222;
-        padding-bottom: 15px;
+        padding-bottom: 10px;
     }}
 
-    /* The Visual Card Container */
-    .fused-card-container {{
+    /* Global Selection Tools */
+    .selection-tool-btn button {{
+        background-color: transparent !important;
+        border: 1px solid #333 !important;
+        color: #888 !important;
+        font-size: 12px !important;
+        height: 2.5em !important;
+    }}
+    .selection-tool-btn button:hover {{ border-color: {ACCENT_COLOR} !important; color: white !important; }}
+
+    /* The Fused Card Logic */
+    .card-container {{
         position: relative;
-        height: 140px;
-        margin-bottom: 20px;
+        margin-bottom: 15px;
+        height: 120px;
     }}
 
-    .visual-card {{
+    .visual-tile {{
         position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
+        width: 100%;
+        height: 100%;
         background-color: {BG_CARD};
-        border-radius: 16px;
-        border: 1px solid #2b2b2b;
+        border-radius: 12px;
+        border: 1px solid {SECONDARY_BORDER}; /* Secondary border as default */
         display: flex;
         align-items: center;
-        padding: 0 30px;
+        padding: 0 25px;
+        pointer-events: none; /* Let clicks pass through to the button */
         z-index: 1;
         transition: all 0.2s ease;
     }}
 
-    .visual-card.active {{
+    .visual-tile.active {{
         border: 2px solid {ACCENT_COLOR} !important;
         background-color: {BG_ACTIVE};
-        box-shadow: 0 0 20px {ACCENT_COLOR}15;
+        box-shadow: 0 4px 15px rgba(243, 110, 46, 0.15);
     }}
 
-    .card-label {{
-        font-size: 22px !important;
-        font-weight: 700 !important;
-        color: white !important;
-        line-height: 1.2;
-    }}
+    .label-text {{ font-size: 20px !important; font-weight: 700; color: white; line-height: 1.1; }}
+    .sublabel-text {{ font-size: 12px; color: #666; margin-top: 4px; }}
 
-    .card-sublabel {{
-        font-size: 13px !important;
-        color: #666 !important;
-        margin-top: 4px;
-    }}
-
-    /* The Ghost Button (Invisible but fills the card) */
-    .stButton {{
-        position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
-        z-index: 10;
-    }}
-
-    .stButton > button {{
+    /* The Trigger Button: Stretched to cover the tile */
+    div.stButton > button {{
+        position: relative;
+        z-index: 5;
         width: 100% !important;
-        height: 140px !important;
+        height: 120px !important;
         background: transparent !important;
         border: none !important;
-        color: transparent !important; /* Hide text */
-        cursor: pointer;
+        color: transparent !important; /* Hide the label because the tile shows it */
+        margin: 0 !important;
     }}
     
-    .stButton > button:hover {{ background: transparent !important; border: none !important; }}
-    .stButton > button:active {{ background: transparent !important; border: none !important; }}
-    .stButton > button:focus {{ box-shadow: none !important; }}
-
-    /* Sidebar Polish */
-    section[data-testid="stSidebar"] {{ background-color: #121212; }}
+    div.stButton > button:hover {{ background: rgba(255,255,255,0.03) !important; }}
+    div.stButton > button:active {{ transform: scale(0.98); }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -102,16 +96,15 @@ def sanitize_filename(name):
     return re.sub(r'[^a-zA-Z0-9]', '_', name)
 
 def get_ratio_svg(ratio_str, active=False):
-    """ Standardized SVG Logic """
-    color = ACCENT_COLOR if active else "#444"
+    color = ACCENT_COLOR if active else "#555"
     try:
         r_w, r_h = map(int, ratio_str.split(":"))
-        max_dim = 45
+        max_dim = 40
         w, h = (max_dim, int(max_dim * (r_h / r_w))) if r_w > r_h else (int(max_dim * (r_w / r_h)), max_dim)
-        return f'<svg width="60" height="60"><rect x="{(60-w)/2}" y="{(60-h)/2}" width="{w}" height="{h}" fill="none" stroke="{color}" stroke-width="2.5"/></svg>'
+        return f'<svg width="50" height="50"><rect x="{(50-w)/2}" y="{(50-h)/2}" width="{w}" height="{h}" fill="none" stroke="{color}" stroke-width="2.5"/></svg>'
     except: return ""
 
-# --- DATA & STATE ---
+# --- DATA ---
 if 'specs' not in st.session_state:
     if os.path.exists("transformer_specs.json"):
         with open("transformer_specs.json", "r") as f: st.session_state.specs = json.load(f)['formats']
@@ -137,10 +130,14 @@ with tab_main:
     if not uploaded_files:
         st.info("Import images in the sidebar to begin.")
     else:
-        # Batch Tools
-        t1, t2, _ = st.columns([1, 1, 5])
-        if t1.button("SELECT ALL"): st.session_state.selected_indices = {i for i in range(len(st.session_state.specs))}; st.rerun()
-        if t2.button("DESELECT ALL"): st.session_state.selected_indices = set(); st.rerun()
+        # Selection Tools with dedicated styling
+        st.markdown('<div class="selection-tool-btn">', unsafe_allow_html=True)
+        t_col1, t_col2, _ = st.columns([1, 1, 6])
+        if t_col1.button("SELECT ALL"): 
+            st.session_state.selected_indices = {i for i in range(len(st.session_state.specs))}; st.rerun()
+        if t_col2.button("SELECT NONE"): 
+            st.session_state.selected_indices = set(); st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
         mcol1, mcol2, mcol3 = st.columns(3)
         cats = ["SOCIAL", "WEB", "EMAIL"]
@@ -152,26 +149,27 @@ with tab_main:
                 
                 for idx, spec in enumerate(st.session_state.specs):
                     if spec['category'] == cat:
-                        is_active = idx in st.session_state.selected_indices
+                        active = idx in st.session_state.selected_indices
                         
-                        # The "Fused" Container Logic
+                        # The Solid Tile + Ghost Button Fusion
                         st.markdown(f"""
-                            <div class="fused-card-container">
-                                <div class="visual-card {'active' if is_active else ''}">
-                                    <div style="margin-right: 25px;">{get_ratio_svg(spec['ratio'], is_active)}</div>
+                            <div class="card-container">
+                                <div class="visual-tile {'active' if active else ''}">
+                                    <div style="margin-right: 25px;">{get_ratio_svg(spec['ratio'], active)}</div>
                                     <div>
-                                        <div class="card-label">{spec['label']}</div>
-                                        <div class="card-sublabel">{spec['width']} x {spec['height']} ({spec['ratio']})</div>
+                                        <div class="label-text">{spec['label']}</div>
+                                        <div class="sublabel-text">{spec['width']} x {spec['height']} ({spec['ratio']})</div>
                                     </div>
                                 </div>
-                            </div>
                         """, unsafe_allow_html=True)
 
-                        # The Invisible Click Layer
-                        if st.button(" ", key=f"tile_{idx}"):
-                            if is_active: st.session_state.selected_indices.remove(idx)
+                        # This button sits on top but is invisible
+                        if st.button(" ", key=f"t_{idx}"):
+                            if active: st.session_state.selected_indices.remove(idx)
                             else: st.session_state.selected_indices.add(idx)
                             st.rerun()
+                        
+                        st.markdown("</div>", unsafe_allow_html=True)
 
         st.divider()
         if st.button("🚀 GENERATE ALL BATCH ASSETS", use_container_width=True):

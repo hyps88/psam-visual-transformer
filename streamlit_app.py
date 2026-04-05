@@ -1,77 +1,97 @@
 import streamlit as st
 from PIL import Image, ImageOps
-import json, os, math, re, io, zipfile, base64
+import json, os, math, re, io, zipfile
 from datetime import datetime
 
 # --- CONFIG & STYLING ---
 ACCENT_COLOR = "#f36e2e"
 BG_CARD = "#1a1c1e"
+BG_ACTIVE = "#25282c"
 
 st.set_page_config(page_title="Visual Transformer", page_icon="🖼️", layout="wide")
 
-# --- CSS: THE "FUSED TILE" ENGINE ---
-def inject_custom_css():
-    st.markdown(f"""
-        <style>
-        /* Global Styles */
-        .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0e1117; }}
-        
-        /* Category Headers: Pro Gallery Spacing */
-        .category-header {{
-            font-size: 16px;
-            font-weight: 800;
-            color: #555 !important;
-            letter-spacing: 4px;
-            margin-top: 110px !important; 
-            margin-bottom: 50px !important;
-            text-transform: uppercase;
-            border-bottom: 1px solid #222;
-            padding-bottom: 15px;
-        }}
+# --- CSS: THE "GHOST BUTTON" ENGINE ---
+# This styles the cards and makes the overlay buttons invisible but clickable
+st.markdown(f"""
+    <style>
+    .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0e1117; }}
+    
+    /* Category Headers: Deep Spacing & High-End Typography */
+    .category-header {{
+        font-size: 15px;
+        font-weight: 800;
+        color: #444 !important;
+        letter-spacing: 5px;
+        margin-top: 120px !important; 
+        margin-bottom: 50px !important;
+        text-transform: uppercase;
+        border-bottom: 1px solid #222;
+        padding-bottom: 15px;
+    }}
 
-        /* The Fused Tile Button */
-        .tile-wrapper button {{
-            width: 100% !important;
-            height: 130px !important;
-            background-color: {BG_CARD} !important;
-            border: 1px solid #2b2b2b !important;
-            border-radius: 15px !important;
-            color: white !important;
-            text-align: left !important;
-            padding-left: 95px !important; 
-            background-image: var(--icon-url) !important;
-            background-repeat: no-repeat !important;
-            background-position: 30px center !important;
-            background-size: 45px 45px !important;
-            transition: all 0.2s ease-in-out !important;
-            margin-bottom: 15px !important;
-            white-space: pre-wrap !important;
-        }}
+    /* The Visual Card Container */
+    .fused-card-container {{
+        position: relative;
+        height: 140px;
+        margin-bottom: 20px;
+    }}
 
-        /* Label Font Size */
-        .tile-wrapper button p {{
-            font-size: 20px !important;
-            font-weight: 700 !important;
-            line-height: 1.3 !important;
-            color: white !important;
-            margin: 0 !important;
-        }}
+    .visual-card {{
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: {BG_CARD};
+        border-radius: 16px;
+        border: 1px solid #2b2b2b;
+        display: flex;
+        align-items: center;
+        padding: 0 30px;
+        z-index: 1;
+        transition: all 0.2s ease;
+    }}
 
-        /* Active State Glow */
-        .tile-wrapper.active button {{
-            border: 2px solid {ACCENT_COLOR} !important;
-            background-color: #25282c !important;
-            box-shadow: 0 0 15px {ACCENT_COLOR}22 !important;
-        }}
+    .visual-card.active {{
+        border: 2px solid {ACCENT_COLOR} !important;
+        background-color: {BG_ACTIVE};
+        box-shadow: 0 0 20px {ACCENT_COLOR}15;
+    }}
 
-        .tile-wrapper button:hover {{
-            border-color: {ACCENT_COLOR}66 !important;
-        }}
+    .card-label {{
+        font-size: 22px !important;
+        font-weight: 700 !important;
+        color: white !important;
+        line-height: 1.2;
+    }}
 
-        /* Hide the default Streamlit "✓" on buttons if it appears */
-        div.stButton > button:focus {{ box-shadow: none !important; }}
-        </style>
-    """, unsafe_allow_html=True)
+    .card-sublabel {{
+        font-size: 13px !important;
+        color: #666 !important;
+        margin-top: 4px;
+    }}
+
+    /* The Ghost Button (Invisible but fills the card) */
+    .stButton {{
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        z-index: 10;
+    }}
+
+    .stButton > button {{
+        width: 100% !important;
+        height: 140px !important;
+        background: transparent !important;
+        border: none !important;
+        color: transparent !important; /* Hide text */
+        cursor: pointer;
+    }}
+    
+    .stButton > button:hover {{ background: transparent !important; border: none !important; }}
+    .stButton > button:active {{ background: transparent !important; border: none !important; }}
+    .stButton > button:focus {{ box-shadow: none !important; }}
+
+    /* Sidebar Polish */
+    section[data-testid="stSidebar"] {{ background-color: #121212; }}
+    </style>
+""", unsafe_allow_html=True)
 
 # --- UTILITIES ---
 def calculate_ratio(w, h):
@@ -81,22 +101,17 @@ def calculate_ratio(w, h):
 def sanitize_filename(name):
     return re.sub(r'[^a-zA-Z0-9]', '_', name)
 
-def get_base64_svg(ratio_str, active=False):
-    """ Generates a base64 SVG for the button icon """
-    color = ACCENT_COLOR if active else "#555"
+def get_ratio_svg(ratio_str, active=False):
+    """ Standardized SVG Logic """
+    color = ACCENT_COLOR if active else "#444"
     try:
         r_w, r_h = map(int, ratio_str.split(":"))
-        max_dim = 35
+        max_dim = 45
         w, h = (max_dim, int(max_dim * (r_h / r_w))) if r_w > r_h else (int(max_dim * (r_w / r_h)), max_dim)
-        svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50">
-                  <rect x="{(50-w)/2}" y="{(50-h)/2}" width="{w}" height="{h}" fill="none" stroke="{color}" stroke-width="2.5"/>
-                  </svg>'''
-        return base64.b64encode(svg.encode()).decode()
+        return f'<svg width="60" height="60"><rect x="{(60-w)/2}" y="{(60-h)/2}" width="{w}" height="{h}" fill="none" stroke="{color}" stroke-width="2.5"/></svg>'
     except: return ""
 
-# --- APP START ---
-inject_custom_css()
-
+# --- DATA & STATE ---
 if 'specs' not in st.session_state:
     if os.path.exists("transformer_specs.json"):
         with open("transformer_specs.json", "r") as f: st.session_state.specs = json.load(f)['formats']
@@ -115,43 +130,48 @@ st.sidebar.subheader("Compression Settings")
 global_quality = st.sidebar.slider("QUALITY", 10, 100, 85)
 resampling_choice = st.sidebar.selectbox("ENGINE", ["LANCZOS (High Quality)", "BILINEAR (Fast)", "BICUBIC (Smooth)"])
 
-# --- MAIN INTERFACE ---
+# --- MAIN ---
 tab_main, tab_manage = st.tabs(["TRANSFORMER", "MANAGE LIBRARY"])
 
 with tab_main:
     if not uploaded_files:
-        st.info("Import images in the sidebar to visualize assets.")
+        st.info("Import images in the sidebar to begin.")
     else:
-        # Selection Tools
-        col_sel_a, col_sel_b, _ = st.columns([1, 1, 5])
-        if col_sel_a.button("SELECT ALL"): 
-            st.session_state.selected_indices = {i for i in range(len(st.session_state.specs))}; st.rerun()
-        if col_sel_b.button("DESELECT ALL"): 
-            st.session_state.selected_indices = set(); st.rerun()
+        # Batch Tools
+        t1, t2, _ = st.columns([1, 1, 5])
+        if t1.button("SELECT ALL"): st.session_state.selected_indices = {i for i in range(len(st.session_state.specs))}; st.rerun()
+        if t2.button("DESELECT ALL"): st.session_state.selected_indices = set(); st.rerun()
 
-        cols = st.columns(3)
+        mcol1, mcol2, mcol3 = st.columns(3)
         cats = ["SOCIAL", "WEB", "EMAIL"]
+        cat_cols = {"SOCIAL": mcol1, "WEB": mcol2, "EMAIL": mcol3}
 
-        for i, cat in enumerate(cats):
-            with cols[i]:
+        for cat in cats:
+            with cat_cols[cat]:
                 st.markdown(f'<p class="category-header">{cat}</p>', unsafe_allow_html=True)
                 
                 for idx, spec in enumerate(st.session_state.specs):
                     if spec['category'] == cat:
-                        active = idx in st.session_state.selected_indices
-                        icon_b64 = get_base64_svg(spec['ratio'], active)
+                        is_active = idx in st.session_state.selected_indices
                         
-                        # Apply the icon via a CSS Variable
-                        st.markdown(f'<div class="tile-wrapper {"active" if active else ""}" style="--icon-url: url(data:image/svg+xml;base64,{icon_b64})">', unsafe_allow_html=True)
-                        
-                        # The Card is the Button
-                        # Use a newline \n to create the label/size split
-                        if st.button(f"{spec['label']}\n{spec['width']} x {spec['height']}", key=f"tile_{idx}"):
-                            if active: st.session_state.selected_indices.remove(idx)
+                        # The "Fused" Container Logic
+                        st.markdown(f"""
+                            <div class="fused-card-container">
+                                <div class="visual-card {'active' if is_active else ''}">
+                                    <div style="margin-right: 25px;">{get_ratio_svg(spec['ratio'], is_active)}</div>
+                                    <div>
+                                        <div class="card-label">{spec['label']}</div>
+                                        <div class="card-sublabel">{spec['width']} x {spec['height']} ({spec['ratio']})</div>
+                                    </div>
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
+
+                        # The Invisible Click Layer
+                        if st.button(" ", key=f"tile_{idx}"):
+                            if is_active: st.session_state.selected_indices.remove(idx)
                             else: st.session_state.selected_indices.add(idx)
                             st.rerun()
-                        
-                        st.markdown('</div>', unsafe_allow_html=True)
 
         st.divider()
         if st.button("🚀 GENERATE ALL BATCH ASSETS", use_container_width=True):

@@ -76,7 +76,7 @@ with tab_run:
 
                 # --- 3.1.1 NEW: VISUAL POSITIONING ENGINE ---
                 # Default closed to save space. We preview the FIRST image in the batch.
-                with st.expander("👁️ Preview & Alignment Controls (Vertical/Horizontal Safe)", expanded=False):
+                with st.expander("👁️ Preview & Alignment Controls", expanded=False):
                     
                     # Proportional Bounding Box logic: Constraints at 500x500 max
                     try: aspect_ratio = cust_w / cust_h

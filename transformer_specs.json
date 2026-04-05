@@ -1,85 +1,94 @@
 {
-  "formats": [
-    {
-      "category": "SOCIAL",
-      "label": "Instagram / FB Post",
-      "width": 1080,
-      "height": 1080,
-      "ratio": "1:1",
-      "ext": "JPEG",
-      "quality": 85
-    },
-    {
-      "category": "SOCIAL",
-      "label": "IG Portrait / Lead",
-      "width": 1080,
-      "height": 1350,
-      "ratio": "4:5",
-      "ext": "JPEG",
-      "quality": 85
-    },
-    {
-      "category": "SOCIAL",
-      "label": "IG Story / Reels",
-      "width": 1080,
-      "height": 1920,
-      "ratio": "9:16",
-      "ext": "JPEG",
-      "quality": 80
-    },
-    {
-      "category": "WEB",
-      "label": "Front Page Banner",
-      "width": 3000,
-      "height": 1400,
-      "ratio": "15:7",
-      "ext": "WebP",
-      "quality": 75
-    },
-    {
-      "category": "WEB",
-      "label": "Event Page Banner",
-      "width": 2300,
-      "height": 1300,
-      "ratio": "23:13",
-      "ext": "WebP",
-      "quality": 70
-    },
-    {
-      "category": "WEB",
-      "label": "Event Thumbnail",
-      "width": 1008,
-      "height": 852,
-      "ratio": "84:71",
-      "ext": "WebP",
-      "quality": 70
-    },
-    {
-      "category": "EMAIL",
-      "label": "Email Header",
-      "width": 800,
-      "height": 400,
-      "ratio": "2:1",
-      "ext": "WebP",
-      "quality": 65
-    },
-    {
-      "category": "EMAIL",
-      "label": "Body Image",
-      "width": 400,
-      "height": 300,
-      "ratio": "4:3",
-      "ext": "WebP",
-      "quality": 65
-    },
-    {
-      "category": "EMAIL",
-      "label": "Column",
-      "width": 250,
-      "height": 250,
-      "ratio": "1:1",
-      "ext": "WebP",
-      "quality": 65
-    }
-  ]
+    "formats": [
+        {
+            "category": "SOCIAL",
+            "label": "Instagram / FB Post",
+            "width": 1080,
+            "height": 1080,
+            "ratio": "1:1",
+            "ext": "JPEG",
+            "quality": 85
+        },
+        {
+            "category": "SOCIAL",
+            "label": "IG Portrait / Lead",
+            "width": 1080,
+            "height": 1350,
+            "ratio": "4:5",
+            "ext": "JPEG",
+            "quality": 85
+        },
+        {
+            "category": "SOCIAL",
+            "label": "IG Story / Reels",
+            "width": 1080,
+            "height": 1920,
+            "ratio": "9:16",
+            "ext": "JPEG",
+            "quality": 80
+        },
+        {
+            "category": "WEB",
+            "label": "Front Page Banner",
+            "width": 3000,
+            "height": 1400,
+            "ratio": "15:7",
+            "ext": "WebP",
+            "quality": 75
+        },
+        {
+            "category": "WEB",
+            "label": "Event Page Banner",
+            "width": 2300,
+            "height": 1300,
+            "ratio": "23:13",
+            "ext": "WebP",
+            "quality": 70
+        },
+        {
+            "category": "WEB",
+            "label": "Event Thumbnail",
+            "width": 1008,
+            "height": 852,
+            "ratio": "84:71",
+            "ext": "WebP",
+            "quality": 70
+        },
+        {
+            "category": "EMAIL",
+            "label": "Email Header",
+            "width": 800,
+            "height": 400,
+            "ratio": "2:1",
+            "ext": "WebP",
+            "quality": 65
+        },
+        {
+            "category": "EMAIL",
+            "label": "Body Image",
+            "width": 400,
+            "height": 300,
+            "ratio": "4:3",
+            "ext": "WebP",
+            "quality": 65
+        },
+        {
+            "category": "EMAIL",
+            "label": "Column",
+            "width": 250,
+            "height": 250,
+            "ratio": "1:1",
+            "ext": "WebP",
+            "quality": 65
+        },
+        {
+            "category": "SOCIAL",
+            "label": "test",
+            "width": 1080,
+            "height": 1080,
+            "ratio": "1:1",
+            "ext": "WebP",
+            "quality": 85
+        }
+    ]
 }

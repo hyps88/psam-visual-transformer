@@ -16,13 +16,12 @@ if 'proj_name' not in st.session_state:
 
 # --- 2. LOGIC: SECTION TOGGLE ---
 def toggle_section(category_name):
-    # Safe master state application
     master_state = st.session_state[f"master_{category_name}"]
     for spec in st.session_state.specs:
         if spec.get('category') == category_name:
             st.session_state[f"run_{spec['label']}"] = master_state
 
-# --- 3. THEME LOADING ---
+# --- 3. THEME & STORAGE ---
 def load_css(file_name):
     if os.path.exists(file_name):
         with open(file_name) as f:
@@ -35,6 +34,10 @@ def save_specs_to_disk():
         json.dump({"formats": st.session_state.specs}, f, indent=4)
 
 # --- 4. HELPERS ---
+def calculate_ratio(w, h):
+    gcd = math.gcd(w, h)
+    return f"{w//gcd}:{h//gcd}"
+
 def get_svg_rect(ratio_str):
     try:
         r_w, r_h = map(int, ratio_str.split(":")); max_d = 35
@@ -53,29 +56,30 @@ with tab_run:
 
     if uploaded_files:
         st.write(" ")
+        # Build dynamic category list from your JSON
         categories = sorted(list(set(s.get('category', 'OTHER') for s in st.session_state.specs)))
         selected_formats = []
 
         for category in categories:
             cat_specs = [s for s in st.session_state.specs if s.get('category') == category]
             
-            # RECTIFIED: Master Checkbox to the RIGHT of Title
-            # Use a tight column split to keep checkbox close to text
-            h_col1, h_col2, _ = st.columns([0.15, 0.05, 1]) 
-            with h_col1:
+            # HEADER: Title then Checkbox
+            # Use fixed-width micro columns to prevent stacking
+            h_cols = st.columns([0.1, 0.05, 0.85]) 
+            with h_cols[0]:
                 st.markdown(f'<p class="cat-header-text" style="padding-top: 5px;">{category}</p>', unsafe_allow_html=True)
-            with h_col2:
-                # No label, small checkbox pinned right next to text
+            with h_cols[1]:
                 st.checkbox("", value=True, key=f"master_{category}", 
                             on_change=toggle_section, args=(category,), 
                             label_visibility="collapsed")
+            st.divider() # Visual break for the header
             
-            # 2-COLUMN GRID (Locked)
+            # 2-COLUMN GRID
             for i in range(0, len(cat_specs), 2):
                 row_specs = cat_specs[i:i+2]
-                cols = st.columns(2)
+                grid_cols = st.columns(2)
                 for idx, spec in enumerate(row_specs):
-                    with cols[idx]:
+                    with grid_cols[idx]:
                         with st.container(border=True):
                             c_icon, c_info, c_check = st.columns([1, 6, 1])
                             with c_icon: st.markdown(get_svg_rect(spec['ratio']), unsafe_allow_html=True)
@@ -117,11 +121,11 @@ with tab_fmt:
     st.divider()
     with st.form("new_standard"):
         st.write("#### Add New Permanent Format")
-        # Text input for Category allows you to create new sections
         n_cat = st.text_input("Category (e.g. SOCIAL, PRINT, WEB)", value="SOCIAL")
         nc1, nc2, nc3 = st.columns(3); n_lab = nc1.text_input("Format Name"); n_ext = nc2.selectbox("File Type", ["WebP", "JPEG"]); n_q = nc3.slider("Quality", 10, 100, 85)
         nc4, nc5 = st.columns(2); n_w = nc4.number_input("Width", 1080); n_h = nc5.number_input("Height", 1080)
         if st.form_submit_button("ADD TO SYSTEM"):
+            # FIX: Included all required fields to match initialization
             st.session_state.specs.append({"category": n_cat.upper(), "label": n_lab, "width": int(n_w), "height": int(n_h), "ratio": calculate_ratio(int(n_w), int(n_h)), "ext": n_ext, "quality": n_q}); save_specs_to_disk(); st.rerun()
 
 with tab_set:

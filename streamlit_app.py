@@ -9,7 +9,8 @@ if 'specs' not in st.session_state:
     if os.path.exists("transformer_specs.json"):
         with open("transformer_specs.json", "r") as f:
             st.session_state.specs = json.load(f).get('formats', [])
-    else: st.session_state.specs = []
+    else:
+        st.session_state.specs = []
 
 if 'proj_name' not in st.session_state:
     st.session_state.proj_name = "PSAM_Export"
@@ -54,7 +55,7 @@ with tab_run:
     if uploaded_files:
         st.write(" ")
         
-        # 3.1 CUSTOM SETTINGS (The "One-Off" Override)
+        # 3.1 CUSTOM SETTINGS
         st.markdown('<p class="cat-header-text">Custom Settings</p>', unsafe_allow_html=True)
         with st.container(border=True):
             c1, c2, c3, c4 = st.columns([2, 2, 2, 3])
@@ -62,23 +63,18 @@ with tab_run:
             cust_h = c2.number_input("Height", value=1080, key="cust_h")
             cust_ext = c3.selectbox("Format", ["WebP", "JPEG"], key="cust_ext")
             cust_q = c4.slider("Compression / Quality", 10, 100, 85, key="cust_q")
-            
             cust_active = st.checkbox("Apply Custom Settings to Export", value=False)
 
-        # 3.2 TEMPLATES TOGGLE
+        # 3.2 TEMPLATES TOGGLE: Default to OFF
         st.write(" ")
-        show_templates = st.toggle("Templates", value=True)
+        show_templates = st.toggle("Templates", value=False)
 
         selected_formats = []
-        
-        # If user checked "Custom Settings", add that virtual spec to the list
         if cust_active:
-            selected_formats.append({
-                "label": "Custom", "width": cust_w, "height": cust_h, 
-                "ext": cust_ext, "quality": cust_q
-            })
+            selected_formats.append({"label": "Custom", "width": cust_w, "height": cust_h, "ext": cust_ext, "quality": cust_q})
 
         if show_templates:
+            # Sort categories and render sections
             categories = sorted(list(set(s.get('category', 'OTHER') for s in st.session_state.specs)))
             for category in categories:
                 cat_specs = [s for s in st.session_state.specs if s.get('category') == category]
@@ -87,7 +83,8 @@ with tab_run:
                 with h_cols[0]:
                     st.markdown(f'<p class="cat-header-text" style="padding-top: 5px;">{category}</p>', unsafe_allow_html=True)
                 with h_cols[1]:
-                    st.checkbox("", value=True, key=f"master_{category}", on_change=toggle_section, args=(category,), label_visibility="collapsed")
+                    # Section Master: Default to OFF
+                    st.checkbox("", value=False, key=f"master_{category}", on_change=toggle_section, args=(category,), label_visibility="collapsed")
                 
                 for i in range(0, len(cat_specs), 2):
                     row_specs = cat_specs[i:i+2]
@@ -102,7 +99,8 @@ with tab_run:
                                     sub_text = f"{spec['width']}x{spec['height']} — {spec.get('ext', 'WebP').upper()} @ {spec.get('quality', 85)}%"
                                     st.markdown(f'<div class="card-subline">{sub_text}</div>', unsafe_allow_html=True)
                                 with c_check:
-                                    if st.checkbox("", value=st.session_state.get(f"run_{spec['label']}", True), key=f"run_{spec['label']}", label_visibility="collapsed"):
+                                    # Individual Formats: Default to OFF
+                                    if st.checkbox("", value=st.session_state.get(f"run_{spec['label']}", False), key=f"run_{spec['label']}", label_visibility="collapsed"):
                                         selected_formats.append(spec)
 
         st.divider()
@@ -116,14 +114,52 @@ with tab_run:
                         for spec in selected_formats:
                             res = ImageOps.fit(img, (spec['width'], spec['height']), Image.Resampling.LANCZOS)
                             f_ext = spec.get('ext', 'WebP').upper()
-                            # Use custom label for custom settings to avoid naming collision
                             label_slug = sanitize(spec['label'])
                             f_name = f"PSAM_{label_slug}_{spec['width']}x{spec['height']}.{f_ext.lower()}"
-                            
                             img_io = io.BytesIO()
                             res.save(img_io, format=f_ext, quality=spec.get('quality', 85))
                             zip_file.writestr(f"{base_n}/{f_name}", img_io.getvalue())
-                st.success(f"Generated {len(uploaded_files)} images.")
+                st.success(f"Generated {len(uploaded_files)} imagesbatch.")
                 st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
 
-# --- (Keep FORMATS and SETTINGS tabs as they were) ---
+with tab_fmt:
+    st.write("### Museum Standards Library")
+    # RECTIFIED: Ensuring the format library renders correctly
+    if st.session_state.specs:
+        for idx, spec in enumerate(st.session_state.specs):
+            with st.expander(f"{spec.get('category', 'OTHER')}: {spec.get('label', 'Unnamed')}"):
+                l = st.text_input("Label", spec.get('label', ''), key=f"edit_l_{idx}")
+                c1, c2 = st.columns(2)
+                w = c1.number_input("Width", value=int(spec.get('width', 1080)), key=f"w_{idx}")
+                h = c2.number_input("Height", value=int(spec.get('height', 1080)), key=f"h_{idx}")
+                
+                c3, c4 = st.columns(2)
+                cur_ext = 0 if spec.get('ext', 'WebP') == 'WebP' else 1
+                e = c3.selectbox("File Type", ["WebP", "JPEG"], index=cur_ext, key=f"e_{idx}")
+                q = c4.slider("Quality", 10, 100, spec.get('quality', 85), key=f"q_{idx}")
+                
+                b1, b2 = st.columns([1, 4])
+                if b1.button("Save Changes", key=f"upd_{idx}"):
+                    st.session_state.specs[idx].update({"label": l, "width": int(w), "height": int(h), "ext": e, "quality": q, "ratio": calculate_ratio(int(w), int(h))})
+                    save_specs_to_disk(); st.rerun()
+                if b2.button("Remove Format", key=f"del_{idx}"):
+                    st.session_state.specs.pop(idx); save_specs_to_disk(); st.rerun()
+    else:
+        st.info("No formats found in the library. Use the form below to add one.")
+
+    st.divider()
+    with st.form("new_standard"):
+        st.write("#### Add New Permanent Format")
+        n_cat = st.text_input("Category (e.g. SOCIAL, PRINT, WEB)", value="SOCIAL")
+        nc1, nc2, nc3 = st.columns(3); n_lab = nc1.text_input("Format Name"); n_ext = nc2.selectbox("File Type", ["WebP", "JPEG"]); n_q = nc3.slider("Quality", 10, 100, 85)
+        nc4, nc5 = st.columns(2); n_w = nc4.number_input("Width", 1080); n_h = nc5.number_input("Height", 1080)
+        if st.form_submit_button("ADD TO SYSTEM"):
+            st.session_state.specs.append({"category": n_cat.upper(), "label": n_lab, "width": int(n_w), "height": int(n_h), "ratio": calculate_ratio(int(n_w), int(n_h)), "ext": n_ext, "quality": n_q})
+            save_specs_to_disk(); st.rerun()
+
+with tab_set:
+    st.write("### Workflow Settings")
+    st.session_state.proj_name = st.text_input("Project Export Name", value=st.session_state.proj_name)
+    st.divider()
+    json_data = json.dumps({"formats": st.session_state.specs}, indent=4)
+    st.download_button(label="💾 EXPORT LIBRARY (JSON)", data=json_data, file_name="psam_library_backup.json", mime="application/json")

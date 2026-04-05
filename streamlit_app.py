@@ -53,7 +53,7 @@ load_css('style.css')
 # --- 3. INTERFACE ---
 tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
-# --- TAB 1: TRANSFORMER ---
+# --- TAB 1: TRANSFORMER [CORE LOCKED] ---
 with tab_run:
     uploaded_files = st.file_uploader("Drag & Drop", type=['jpg', 'png', 'webp'], accept_multiple_files=True, label_visibility="collapsed")
 
@@ -67,63 +67,49 @@ with tab_run:
 
         if cust_active:
             with st.container(border=True):
-                # --- DUAL LOCKS ---
+                # Separate Checkboxes
                 col_locks = st.columns(2)
                 l_ar = col_locks[0].checkbox("Lock Aspect Ratio", value=False)
-                l_sz = col_locks[1].checkbox("Set Original Size", value=False)
+                l_sz = col_locks[1].checkbox("Set Original Size (Override)", value=False)
                 
                 img_ref = Image.open(cur_file)
                 ow, oh = img_ref.size
                 
                 c1, c2, c3, c4 = st.columns([2, 2, 2, 3])
-                w_val = ow if l_sz else 1080
-                cust_w = c1.number_input("Width", value=w_val, key="cw_in")
                 
+                # Width Logic: Override if Original Size is checked
+                w_val = ow if l_sz else 1080
+                cust_w = c1.number_input("Width", value=w_val, disabled=l_sz, key="cw_in")
+                
+                # Height Logic: Override if Original Size is checked
                 if l_ar:
                     cust_h = int(cust_w * (oh / ow))
                     c2.number_input("Height (Locked)", value=cust_h, disabled=True)
                 else:
                     h_val = oh if l_sz else 1080
-                    cust_h = c2.number_input("Height", value=h_val, key="ch_in")
+                    cust_h = c2.number_input("Height", value=h_val, disabled=l_sz, key="ch_in")
                 
                 cust_ext = c3.selectbox("Format", ["WebP", "JPEG"], key="ce_in")
                 cust_q = c4.slider("Export Quality (100 = Lossless)", 10, 100, 95, key="cq_in")
 
                 with st.expander("👁️ Preview & Individual Alignment", expanded=True):
-                    # Robust Alignment Engine
+                    # Alignment Memory
                     if cur_file.name not in st.session_state.align_map:
-                        st.session_state.align_map[cur_file.name] = {"x": 50, "y": 50, "preset": "Center"}
+                        st.session_state.align_map[cur_file.name] = {"x": 50, "y": 50}
                     
                     state = st.session_state.align_map[cur_file.name]
                     pcol_img, pcol_ctrl = st.columns([1, 1])
                     
                     with pcol_ctrl:
                         st.write("**Alignment for this Image**")
-                        # Presets fixed with explicit indexing
-                        preset_list = ["Center", "Top", "Bottom", "Left", "Right", "Manual"]
-                        current_preset_idx = preset_list.index(state["preset"])
+                        # Presets Removed per Request
+                        mx = st.slider("X-Axis (Left to Right)", 0, 100, state["x"], key=f"x_{cur_file.name}")
+                        my = st.slider("Y-Axis (Top to Bottom)", 0, 100, state["y"], key=f"y_{cur_file.name}")
                         
-                        preset = st.radio("Quick Presets", preset_list, index=current_preset_idx, horizontal=True, key=f"p_{cur_file.name}")
-                        
-                        # Trigger Preset snap
-                        if preset != state["preset"] and preset != "Manual":
-                            if preset == "Center": state["x"], state["y"] = 50, 50
-                            elif preset == "Top": state["x"], state["y"] = 50, 0
-                            elif preset == "Bottom": state["x"], state["y"] = 50, 100
-                            elif preset == "Left": state["x"], state["y"] = 0, 50
-                            elif preset == "Right": state["x"], state["y"] = 100, 50
-                            state["preset"] = preset
-
-                        mx = st.slider("X-Axis", 0, 100, state["x"], key=f"x_{cur_file.name}")
-                        my = st.slider("Y-Axis", 0, 100, state["y"], key=f"y_{cur_file.name}")
-                        
-                        # Manual Override
-                        if mx != state["x"] or my != state["y"]:
-                            state["x"], state["y"], state["preset"] = mx, my, "Manual"
-                        
+                        state["x"], state["y"] = mx, my
                         st.session_state.align_map[cur_file.name] = state
 
-                        # Minimalist Chevron Nav
+                        # Chevron Navigation
                         st.divider()
                         nc1, nc2, nc3 = st.columns([1, 4, 1])
                         with nc1:
@@ -145,7 +131,7 @@ with tab_run:
                         asp = cust_w / cust_h
                         sw, sh = (500, int(500/asp)) if asp > 1 else (int(500*asp), 500)
                         crop = ImageOps.fit(img_ref.convert("RGB"), (cust_w, cust_h), method=Image.Resampling.LANCZOS, centering=(state["x"]/100, state["y"]/100))
-                        st.image(crop, width=sw, caption=f"Individual Preview ({calculate_ratio(cust_w, cust_h)})")
+                        st.image(crop, width=sw)
             
             selected_formats.append({"label": "Custom", "width": cust_w, "height": cust_h, "ext": cust_ext, "quality": cust_q})
 
@@ -164,7 +150,6 @@ with tab_run:
                     for idx, spec in enumerate(row_specs):
                         with grid_cols[idx]:
                             with st.container(border=True):
-                                # RESTORED: SVG Aspect Rectangles
                                 i_c, n_c, s_c = st.columns([1, 6, 1])
                                 with i_c: st.markdown(get_svg_rect(calculate_ratio(spec['width'], spec['height'])), unsafe_allow_html=True)
                                 with n_c:
@@ -201,7 +186,7 @@ with tab_run:
                 
                 st_text.text("Done!"); st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
 
-# --- TAB 2: FORMATS [LOCKED] ---
+# --- TAB 2 & 3 [LOCKED] ---
 with tab_fmt:
     st.write("### Museum Standards Library")
     if st.session_state.specs:
@@ -216,11 +201,10 @@ with tab_fmt:
     st.divider()
     with st.form("new_std"):
         st.write("#### Add Format")
-        n_cat = st.text_input("Cat", "SOCIAL"); n_lab = st.text_input("Name"); n_ext = n_cat = st.selectbox("Type", ["WebP", "JPEG"]); n_q = st.slider("Q", 10, 100, 85); n_w = st.number_input("W", 1080); n_h = st.number_input("H", 1080)
+        n_cat = st.text_input("Cat", "SOCIAL"); n_lab = st.text_input("Name"); n_ext = st.selectbox("Type", ["WebP", "JPEG"]); n_q = st.slider("Q", 10, 100, 85); n_w = st.number_input("W", 1080); n_h = st.number_input("H", 1080)
         if st.form_submit_button("ADD"):
             st.session_state.specs.append({"category": n_cat.upper(), "label": n_lab, "width": int(n_w), "height": int(n_h), "ext": n_ext, "quality": n_q}); save_specs_to_disk(); st.rerun()
 
-# --- TAB 3: SETTINGS [LOCKED] ---
 with tab_set:
     st.write("### Workflow Settings")
     st.session_state.proj_name = st.text_input("Project Name", value=st.session_state.proj_name)

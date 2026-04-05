@@ -6,7 +6,18 @@
 
 /* --- THE PERFECT DROP ZONE (LOCKED) --- */
 
-
+[data-testid="stFileUploader"] {
+    background-color: transparent !important;
+    padding: 60px 20px !important;
+    border-radius: 20px !important;
+    border: 3px dashed #333 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    min-height: 100px;
+}
 
 
 [data-testid="stFileUploaderDropzone"] div {
@@ -15,12 +26,7 @@
 
 
 [data-testid="stFileUploader"] section {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    text-align: center !important;
-    min-height: 250px !important; /* Ensures there is enough vertical space to center within */
+
 }
 
 

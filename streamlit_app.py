@@ -54,45 +54,45 @@ with tab_run:
     if uploaded_files:
         st.write(" ")
         
-        # 3.1 CUSTOM SETTINGS WITH REFINED LIVE PREVIEW
+        # 3.1 CUSTOM SETTINGS
         st.markdown('<p class="cat-header-text">Custom Settings</p>', unsafe_allow_html=True)
         with st.container(border=True):
             c1, c2, c3, c4 = st.columns([2, 2, 2, 3])
             cust_w = c1.number_input("Width", value=1080, key="cust_w")
             cust_h = c2.number_input("Height", value=1080, key="cust_h")
             cust_ext = c3.selectbox("Format", ["WebP", "JPEG"], key="cust_ext")
-            cust_q = c4.slider("Compression / Quality", 10, 100, 85, key="cust_q")
+            # QUALITY: We maintain 1-100 but will use "subsampling=0" in the backend for ultra-clarity
+            cust_q = c4.slider("Export Quality (100 = Maximum Fidelity)", 10, 100, 95, key="cust_q")
             cust_active = st.checkbox("Apply Custom Settings to Export", value=False)
 
-            # --- LIVE ALIGNMENT ENGINE (FIXED WIDTH PREVIEW) ---
+            # --- PREVIEW & ALIGNMENT (EXPANDER) ---
             if cust_active:
-                st.divider()
-                st.write("#### 👁️ Preview & Alignment")
-                
-                preview_img = Image.open(uploaded_files[0]).convert("RGB")
-                pcol_img, pcol_ctrl = st.columns([2, 1])
-                
-                with pcol_ctrl:
-                    st.write("**Alignment Controls**")
-                    preset = st.radio("Quick Presets", ["Center", "Top", "Bottom", "Left", "Right", "Manual"], horizontal=True)
+                with st.expander("👁️ Preview & Alignment Controls", expanded=False):
+                    preview_img = Image.open(uploaded_files[0]).convert("RGB")
+                    pcol_img, pcol_ctrl = st.columns([2, 1])
                     
-                    if preset == "Center": def_x, def_y = 50, 50
-                    elif preset == "Top": def_x, def_y = 50, 0
-                    elif preset == "Bottom": def_x, def_y = 50, 100
-                    elif preset == "Left": def_x, def_y = 0, 50
-                    elif preset == "Right": def_x, def_y = 100, 50
-                    else: def_x, def_y = 50, 50
+                    with pcol_ctrl:
+                        preset = st.radio("Quick Presets", ["Center", "Top", "Bottom", "Left", "Right", "Manual"], horizontal=True)
+                        
+                        if preset == "Center": def_x, def_y = 50, 50
+                        elif preset == "Top": def_x, def_y = 50, 0
+                        elif preset == "Bottom": def_x, def_y = 50, 100
+                        elif preset == "Left": def_x, def_y = 0, 50
+                        elif preset == "Right": def_x, def_y = 100, 50
+                        else: def_x, def_y = 50, 50
 
-                    man_x = st.slider("X-Axis (Left to Right)", 0, 100, def_x)
-                    man_y = st.slider("Y-Axis (Top to Bottom)", 0, 100, def_y)
-                    
-                    final_cx = man_x / 100
-                    final_cy = man_y / 100
+                        man_x = st.slider("X-Axis Offset", 0, 100, def_x)
+                        man_y = st.slider("Y-Axis Offset", 0, 100, def_y)
+                        
+                        final_cx = man_x / 100
+                        final_cy = man_y / 100
 
-                with pcol_img:
-                    res_preview = ImageOps.fit(preview_img, (cust_w, cust_h), centering=(final_cx, final_cy))
-                    # Capped at 500px to maintain dashboard layout integrity
-                    st.image(res_preview, width=500, caption=f"Proportional Preview ({calculate_ratio(cust_w, cust_h)})")
+                    with pcol_img:
+                        res_preview = ImageOps.fit(preview_img, (cust_w, cust_h), centering=(final_cx, final_cy))
+                        st.image(res_preview, width=500, caption=f"Proportional Preview ({calculate_ratio(cust_w, cust_h)})")
+            else:
+                # Default values if expander isn't touched
+                final_cx, final_cy = 0.5, 0.5
 
         # 3.2 TEMPLATES TOGGLE [LOCKED]
         st.write(" ")
@@ -139,12 +139,20 @@ with tab_run:
                         base_n = sanitize(os.path.splitext(up_file.name)[0])
                         for spec in selected_formats:
                             cx = spec.get('cx', 0.5); cy = spec.get('cy', 0.5)
-                            res = ImageOps.fit(img, (spec['width'], spec['height']), centering=(cx, cy))
+                            # ULTRA-QUALITY RESAMPLING: Using LANCZOS
+                            res = ImageOps.fit(img, (spec['width'], spec['height']), method=Image.Resampling.LANCZOS, centering=(cx, cy))
+                            
                             f_ext = spec.get('ext', 'WebP').upper()
                             label_slug = sanitize(spec['label'])
                             f_name = f"PSAM_{label_slug}_{spec['width']}x{spec['height']}.{f_ext.lower()}"
+                            
                             img_io = io.BytesIO()
-                            res.save(img_io, format=f_ext, quality=spec.get('quality', 85))
+                            # QUALITY BOOST: subsampling=0 (4:4:4) removes artifacts
+                            if f_ext == "JPEG":
+                                res.save(img_io, format="JPEG", quality=spec.get('quality', 95), subsampling=0, optimize=True)
+                            else:
+                                res.save(img_io, format="WEBP", quality=spec.get('quality', 95), lossless=(spec.get('quality')==100), method=6)
+                            
                             zip_file.writestr(f"{base_n}/{f_name}", img_io.getvalue())
                 st.success(f"Generated {len(uploaded_files)} image batches."); st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
 

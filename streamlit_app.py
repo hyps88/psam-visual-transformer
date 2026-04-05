@@ -8,7 +8,7 @@ ACCENT_COLOR = "#f36e2e"
 st.set_page_config(page_title="Visual Transformer", layout="wide")
 
 def save_specs_to_disk():
-    """ Keeps your museum standards persistent """
+    """ Keeps your museum standards persistent across sessions """
     with open("transformer_specs.json", "w") as f:
         json.dump({"formats": st.session_state.specs}, f, indent=4)
 
@@ -28,48 +28,42 @@ st.markdown(f"""
         text-transform: uppercase;
     }}
 
-    /* DISCREET TEXT LINKS */
+    /* DISCREET TEXT LINKS: Moved to bottom, tiny and grey */
     .discreet-link button {{
         background: transparent !important;
         border: none !important;
-        color: #666 !important;
-        font-size: 12px !important;
-        font-weight: 500 !important;
+        color: #444 !important;
+        font-size: 10px !important;
         text-decoration: none !important;
         padding: 0 !important;
-        margin-right: 30px !important;
+        margin-right: 20px !important;
         height: auto !important;
     }}
-    .discreet-link button:hover {{ color: {ACCENT_COLOR} !important; text-decoration: underline !important; }}
+    .discreet-link button:hover {{ color: white !important; text-decoration: underline !important; }}
 
     /* THE UNIFIED DROP ZONE */
     [data-testid="stFileUploader"] {{
         background-color: #16181a !important;
-        padding: 60px 20px !important;
-        border-radius: 20px !important;
+        padding: 30px 20px !important;
+        border-radius: 15px !important;
         border: 2px dashed #333 !important;
         transition: 0.3s ease;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 250px;
     }}
     [data-testid="stFileUploader"]:hover {{ border-color: {ACCENT_COLOR} !important; }}
     
-    /* THE TITLE: Helvetica Bold */
+    /* THE TITLE: Clean Helvetica */
     [data-testid="stFileUploader"] label {{
         display: block !important;
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
-        font-size: 28px !important;
+        font-size: 24px !important;
         font-weight: 700 !important;
         color: #eee !important;
         text-align: center !important;
-        margin-bottom: 20px !important;
+        margin-bottom: 15px !important;
         width: 100% !important;
     }}
 
-    /* RECTIFY BROWSE BUTTON */
+    /* RECTIFY FILE LIST VISIBILITY */
     [data-testid="stFileUploader"] section {{
         background: transparent !important;
         display: flex !important;
@@ -77,19 +71,18 @@ st.markdown(f"""
         align-items: center !important;
     }}
     
-    /* Hide default limit/text strings */
-    [data-testid="stFileUploader"] section > div {{ display: none !important; }}
+    /* Style the internal file items to be cleaner */
+    [data-testid="stFileUploaderDropzoneInstructions"] {{ display: none !important; }}
     
+    /* Restore and style the browse button */
     [data-testid="stFileUploader"] section button {{
-        display: block !important;
-        background-color: #333 !important;
-        color: #aaa !important;
-        border: 1px solid #444 !important;
-        padding: 8px 20px !important;
-        border-radius: 6px !important;
-        font-size: 13px !important;
+        background-color: #222 !important;
+        color: #888 !important;
+        border: 1px solid #333 !important;
+        padding: 6px 15px !important;
+        border-radius: 4px !important;
+        font-size: 12px !important;
     }}
-    [data-testid="stFileUploader"] section button:hover {{ border-color: {ACCENT_COLOR} !important; color: white !important; }}
 
     /* TABS & BUTTONS */
     .stTabs [data-baseweb="tab-list"] {{ gap: 40px; border-bottom: 1px solid #222; margin-bottom: 30px; }}
@@ -129,25 +122,11 @@ if 'proj_name' not in st.session_state:
 tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
 with tab_run:
-    # 4.1 FUNCTIONAL DROP ZONE
+    # 4.1 DROP ZONE
     uploaded_files = st.file_uploader("Drag & Drop Images Here", type=['jpg', 'png', 'webp'], accept_multiple_files=True)
 
     if uploaded_files:
-        # Gallery Preview removed as requested
-        st.markdown(f"**Files Uploaded:** {len(uploaded_files)}")
-        
-        st.markdown('<div class="discreet-link">', unsafe_allow_html=True)
-        t_col1, t_col2, _ = st.columns([1, 1, 8])
-        with t_col1:
-            if st.button("SELECT ALL"): 
-                for s in st.session_state.specs: st.session_state[f"run_{s['label']}"] = True
-                st.rerun()
-        with t_col2:
-            if st.button("SELECT NONE"): 
-                for s in st.session_state.specs: st.session_state[f"run_{s['label']}"] = False
-                st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
+        st.write(" ")
         mcol1, mcol2, mcol3 = st.columns(3)
         cats = {"SOCIAL": mcol1, "WEB": mcol2, "EMAIL": mcol3}
         selected_formats = []
@@ -165,6 +144,20 @@ with tab_run:
                                 selected_formats.append(spec)
                             st.markdown(f'<span style="color: #444; font-size: 10px;">{spec.get("ext", "WebP").upper()} @ {spec.get("quality", 85)}%</span>', unsafe_allow_html=True)
 
+        # 4.2 DISCREET SELECTION LINKS: Now moved to bottom
+        st.write(" ")
+        st.markdown('<div class="discreet-link">', unsafe_allow_html=True)
+        t_col1, t_col2, _ = st.columns([1, 1, 8])
+        with t_col1:
+            if st.button("SELECT ALL"): 
+                for s in st.session_state.specs: st.session_state[f"run_{s['label']}"] = True
+                st.rerun()
+        with t_col2:
+            if st.button("SELECT NONE"): 
+                for s in st.session_state.specs: st.session_state[f"run_{s['label']}"] = False
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
         st.divider()
         if st.button("GENERATE ASSETS", use_container_width=True):
             if selected_formats:
@@ -174,7 +167,6 @@ with tab_run:
                         img = Image.open(up_file).convert("RGB")
                         base_n = sanitize(os.path.splitext(up_file.name)[0])
                         for spec in selected_formats:
-                            # Use high-quality Lanczos resampling
                             res = ImageOps.fit(img, (spec['width'], spec['height']), Image.Resampling.LANCZOS)
                             f_ext = spec.get('ext', 'WebP').upper()
                             f_name = f"PSAM_{sanitize(spec['label'])}.{f_ext.lower()}"

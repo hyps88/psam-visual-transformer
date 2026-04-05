@@ -1,6 +1,6 @@
 import streamlit as st
 from PIL import Image, ImageOps
-import json, os, math, re, io, zipfile
+import json, os, math, re, io, zipfile, base64
 from datetime import datetime
 
 # --- CONFIG & STYLING ---
@@ -9,53 +9,69 @@ BG_CARD = "#1a1c1e"
 
 st.set_page_config(page_title="Visual Transformer", page_icon="🖼️", layout="wide")
 
-st.markdown(f"""
-    <style>
-    /* Global Styles */
-    .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0e1117; }}
-    
-    /* Category Headers: Extreme Padding for Clearness */
-    .category-header {{
-        font-size: 13px;
-        font-weight: 800;
-        color: #555 !important;
-        letter-spacing: 3px;
-        margin-top: 100px !important; 
-        margin-bottom: 40px !important;
-        text-transform: uppercase;
-        border-bottom: 1px solid #222;
-        padding-bottom: 10px;
-    }}
+# --- CSS: THE "FUSED TILE" ENGINE ---
+def inject_custom_css():
+    st.markdown(f"""
+        <style>
+        /* Global Styles */
+        .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0e1117; }}
+        
+        /* Category Headers: Pro Gallery Spacing */
+        .category-header {{
+            font-size: 16px;
+            font-weight: 800;
+            color: #555 !important;
+            letter-spacing: 4px;
+            margin-top: 110px !important; 
+            margin-bottom: 50px !important;
+            text-transform: uppercase;
+            border-bottom: 1px solid #222;
+            padding-bottom: 15px;
+        }}
 
-    /* The Interactive Tile */
-    .tile-container {{
-        background-color: {BG_CARD};
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 15px;
-        display: flex;
-        align-items: center;
-        border: 1px solid #2b2b2b;
-        transition: all 0.2s ease;
-    }}
-    
-    .tile-active {{
-        border: 2px solid {ACCENT_COLOR} !important;
-        background-color: #25282c !important;
-    }}
+        /* The Fused Tile Button */
+        .tile-wrapper button {{
+            width: 100% !important;
+            height: 130px !important;
+            background-color: {BG_CARD} !important;
+            border: 1px solid #2b2b2b !important;
+            border-radius: 15px !important;
+            color: white !important;
+            text-align: left !important;
+            padding-left: 95px !important; 
+            background-image: var(--icon-url) !important;
+            background-repeat: no-repeat !important;
+            background-position: 30px center !important;
+            background-size: 45px 45px !important;
+            transition: all 0.2s ease-in-out !important;
+            margin-bottom: 15px !important;
+            white-space: pre-wrap !important;
+        }}
 
-    /* Sidebar Cleanliness */
-    section[data-testid="stSidebar"] {{ background-color: #121212; }}
-    
-    /* Button Polish */
-    div.stButton > button {{
-        border-radius: 8px;
-        height: 3em;
-        font-weight: 600;
-        transition: 0.2s;
-    }}
-    </style>
-""", unsafe_allow_html=True)
+        /* Label Font Size */
+        .tile-wrapper button p {{
+            font-size: 20px !important;
+            font-weight: 700 !important;
+            line-height: 1.3 !important;
+            color: white !important;
+            margin: 0 !important;
+        }}
+
+        /* Active State Glow */
+        .tile-wrapper.active button {{
+            border: 2px solid {ACCENT_COLOR} !important;
+            background-color: #25282c !important;
+            box-shadow: 0 0 15px {ACCENT_COLOR}22 !important;
+        }}
+
+        .tile-wrapper button:hover {{
+            border-color: {ACCENT_COLOR}66 !important;
+        }}
+
+        /* Hide the default Streamlit "✓" on buttons if it appears */
+        div.stButton > button:focus {{ box-shadow: none !important; }}
+        </style>
+    """, unsafe_allow_html=True)
 
 # --- UTILITIES ---
 def calculate_ratio(w, h):
@@ -65,18 +81,22 @@ def calculate_ratio(w, h):
 def sanitize_filename(name):
     return re.sub(r'[^a-zA-Z0-9]', '_', name)
 
-def get_ratio_svg(ratio_str, active=False):
-    """ Standard SVG Rectangle """
-    color = ACCENT_COLOR if active else "#444"
+def get_base64_svg(ratio_str, active=False):
+    """ Generates a base64 SVG for the button icon """
+    color = ACCENT_COLOR if active else "#555"
     try:
         r_w, r_h = map(int, ratio_str.split(":"))
         max_dim = 35
-        if r_w > r_h: w, h = max_dim, int(max_dim * (r_h / r_w))
-        else: h, w = max_dim, int(max_dim * (r_w / r_h))
-        return f'<svg width="45" height="45"><rect x="{(45-w)/2}" y="{(45-h)/2}" width="{w}" height="{h}" fill="none" stroke="{color}" stroke-width="2"/></svg>'
+        w, h = (max_dim, int(max_dim * (r_h / r_w))) if r_w > r_h else (int(max_dim * (r_w / r_h)), max_dim)
+        svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50">
+                  <rect x="{(50-w)/2}" y="{(50-h)/2}" width="{w}" height="{h}" fill="none" stroke="{color}" stroke-width="2.5"/>
+                  </svg>'''
+        return base64.b64encode(svg.encode()).decode()
     except: return ""
 
-# --- DATA ---
+# --- APP START ---
+inject_custom_css()
+
 if 'specs' not in st.session_state:
     if os.path.exists("transformer_specs.json"):
         with open("transformer_specs.json", "r") as f: st.session_state.specs = json.load(f)['formats']
@@ -95,50 +115,43 @@ st.sidebar.subheader("Compression Settings")
 global_quality = st.sidebar.slider("QUALITY", 10, 100, 85)
 resampling_choice = st.sidebar.selectbox("ENGINE", ["LANCZOS (High Quality)", "BILINEAR (Fast)", "BICUBIC (Smooth)"])
 
-# --- MAIN ---
+# --- MAIN INTERFACE ---
 tab_main, tab_manage = st.tabs(["TRANSFORMER", "MANAGE LIBRARY"])
 
 with tab_main:
     if not uploaded_files:
-        st.info("Import images in the sidebar to begin.")
+        st.info("Import images in the sidebar to visualize assets.")
     else:
         # Selection Tools
-        col_a, col_b, _ = st.columns([1, 1, 5])
-        if col_a.button("SELECT ALL"): 
+        col_sel_a, col_sel_b, _ = st.columns([1, 1, 5])
+        if col_sel_a.button("SELECT ALL"): 
             st.session_state.selected_indices = {i for i in range(len(st.session_state.specs))}; st.rerun()
-        if col_b.button("DESELECT ALL"): 
+        if col_sel_b.button("DESELECT ALL"): 
             st.session_state.selected_indices = set(); st.rerun()
 
-        mcol1, mcol2, mcol3 = st.columns(3)
+        cols = st.columns(3)
         cats = ["SOCIAL", "WEB", "EMAIL"]
-        cat_cols = {"SOCIAL": mcol1, "WEB": mcol2, "EMAIL": mcol3}
 
-        for cat in cats:
-            with cat_cols[cat]:
+        for i, cat in enumerate(cats):
+            with cols[i]:
                 st.markdown(f'<p class="category-header">{cat}</p>', unsafe_allow_html=True)
                 
                 for idx, spec in enumerate(st.session_state.specs):
                     if spec['category'] == cat:
                         active = idx in st.session_state.selected_indices
+                        icon_b64 = get_base64_svg(spec['ratio'], active)
                         
-                        # Tile Rendering
-                        card_class = "tile-container tile-active" if active else "tile-container"
-                        st.markdown(f"""
-                            <div class="{card_class}">
-                                <div style="margin-right: 20px;">{get_ratio_svg(spec['ratio'], active)}</div>
-                                <div style="flex-grow: 1;">
-                                    <div style="font-weight: 700; color: white; font-size: 15px;">{spec['label']}</div>
-                                    <div style="color: #666; font-size: 12px;">{spec['width']} x {spec['height']}</div>
-                                </div>
-                            </div>
-                        """, unsafe_allow_html=True)
-
-                        # The Clickable Action
-                        if st.button("✓ SELECTED" if active else "SELECT", key=f"btn_{idx}", use_container_width=True):
+                        # Apply the icon via a CSS Variable
+                        st.markdown(f'<div class="tile-wrapper {"active" if active else ""}" style="--icon-url: url(data:image/svg+xml;base64,{icon_b64})">', unsafe_allow_html=True)
+                        
+                        # The Card is the Button
+                        # Use a newline \n to create the label/size split
+                        if st.button(f"{spec['label']}\n{spec['width']} x {spec['height']}", key=f"tile_{idx}"):
                             if active: st.session_state.selected_indices.remove(idx)
                             else: st.session_state.selected_indices.add(idx)
                             st.rerun()
-                        st.write("") # Spacer
+                        
+                        st.markdown('</div>', unsafe_allow_html=True)
 
         st.divider()
         if st.button("🚀 GENERATE ALL BATCH ASSETS", use_container_width=True):
@@ -162,7 +175,6 @@ with tab_main:
 
 with tab_manage:
     st.write("### Library Management")
-    # (Management code remains standard for safety)
     for idx, spec in enumerate(st.session_state.specs):
         with st.expander(f"✎ {spec['category']}: {spec['label']}"):
             c1, c2, c3, c4 = st.columns(4)

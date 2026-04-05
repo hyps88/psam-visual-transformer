@@ -14,6 +14,14 @@
 
 [data-testid="stFileUploader"]:hover { border-color: #f36e2e !important; }
 
+[data-testid="stFileUploaderDropzone"] {
+    background-color: none !important;
+}
+
+
+
+
+
 /* The "Inside" Title */
 [data-testid="stFileUploaderDropzoneInstructions"] div {
     font-size: 58px !important; /* Your specific 58px request */

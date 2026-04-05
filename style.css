@@ -4,6 +4,24 @@
     background-color: #0e1117;
 }
 
+/* --- MINIMALIST CHEVRON NAV --- */
+.nav-link button {
+    background-color: transparent !important;
+    border: none !important;
+    color: #ffffff !important;
+    font-size: 32px !important; /* Larger for the chevron look */
+    font-weight: 200 !important;
+    padding: 0 !important;
+    opacity: 0.6;
+    transition: all 0.2s ease !important;
+}
+
+.nav-link button:hover {
+    color: #f36e2e !important;
+    opacity: 1;
+    transform: scale(1.1);
+}
+
 /* --- PROGRESS BAR COLORING --- */
 div[data-testid="stProgress"] > div > div > div > div {
     background-color: #f36e2e !important;

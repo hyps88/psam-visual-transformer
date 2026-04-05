@@ -1,12 +1,13 @@
+import streamlit as st
 import requests
 import json
 
-# Replace this with your actual Webhook URL from Step 1
-SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/YOUR/WEBHOOK/HERE"
+# Pull the URL from the secure secrets
+SLACK_WEBHOOK_URL = st.secrets["SLACK_WEBHOOK_URL"]
 
 def send_notification(user_name, project_name, file_count, formats):
     """
-    Sends a formatted alert to the PSAM Marketing Channel.
+    Sends a formatted alert to the PSAM Marketing Channel using Secrets.
     """
     # Create a list of the formats used for the message
     format_list = ", ".join([f.get('label', 'Custom') for f in formats])
@@ -45,5 +46,5 @@ def send_notification(user_name, project_name, file_count, formats):
         )
         return response.status_code == 200
     except Exception as e:
-        print(f"Slack Error: {e}")
+        # Silent fail to ensure main app never crashes
         return False

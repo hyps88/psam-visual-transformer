@@ -21,12 +21,8 @@
 
 
 [data-testid="stFileUploaderDropzone"] div {
-    background-color: transparent !important;
-}
-
-
-[data-testid="stFileUploader"] section {
-
+    background-color: none !important;
+    background: none !important;
 }
 
 

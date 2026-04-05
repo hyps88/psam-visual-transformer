@@ -9,8 +9,7 @@ if 'specs' not in st.session_state:
     if os.path.exists("transformer_specs.json"):
         with open("transformer_specs.json", "r") as f:
             st.session_state.specs = json.load(f).get('formats', [])
-    else:
-        st.session_state.specs = []
+    else: st.session_state.specs = []
 
 if 'proj_name' not in st.session_state:
     st.session_state.proj_name = "PSAM_Export"
@@ -57,6 +56,8 @@ with tab_run:
 
     if uploaded_files:
         st.write(" ")
+        
+        # 3.1 CUSTOM SETTINGS TOGGLE
         cust_active = st.toggle("Custom Settings", value=False)
         selected_formats = []
         final_cx, final_cy = 0.5, 0.5
@@ -94,8 +95,12 @@ with tab_run:
             
             selected_formats.append({"label": "Custom", "width": cust_w, "height": cust_h, "ext": cust_ext, "quality": cust_q, "cx": final_cx, "cy": final_cy})
 
+        # 3.2 TEMPLATES & LOSSLESS TOGGLES
         st.write(" ")
         show_templates = st.toggle("Templates", value=False)
+        # New Toggle for Lossless Export
+        disable_compression = st.toggle("Lossless Export (Print Mode)", value=False)
+
         if show_templates:
             cats = sorted(list(set(s.get('category', 'OTHER') for s in st.session_state.specs)))
             for cat in cats:
@@ -130,16 +135,26 @@ with tab_run:
                             cx, cy = sp.get('cx', 0.5), sp.get('cy', 0.5)
                             res = ImageOps.fit(img, (sp['width'], sp['height']), method=Image.Resampling.LANCZOS, centering=(cx, cy))
                             ext = sp.get('ext', 'WebP').upper()
-                            # UPDATED: Flat root folder + Original name included in filename
+                            
+                            # Determine final quality based on toggle
+                            final_q = 100 if disable_compression else sp.get('quality', 95)
+                            
                             fn = f"PSAM_{bn}_{sanitize(sp['label'])}_{sp['width']}x{sp['height']}.{ext.lower()}"
                             buf = io.BytesIO()
-                            if ext == "JPEG": res.save(buf, format="JPEG", quality=sp.get('quality', 95), subsampling=0, optimize=True)
-                            else: res.save(buf, format="WEBP", quality=sp.get('quality', 95), lossless=(sp.get('quality')==100), method=6)
-                            # Saving directly to root of ZIP (no folder prefix)
+                            
+                            # High fidelity save logic
+                            if ext == "JPEG":
+                                # subsampling=0 (4:4:4) provides max color detail for print
+                                res.save(buf, format="JPEG", quality=final_q, subsampling=0 if disable_compression else 'outer', optimize=True)
+                            else:
+                                # Lossless WebP if toggle is ON and quality is 100
+                                res.save(buf, format="WEBP", quality=final_q, lossless=disable_compression, method=6)
+                                
                             zf.writestr(fn, buf.getvalue())
-                st.success("Batch Generated."); st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
+                st.success("Batch Generated (Lossless Active)" if disable_compression else "Batch Generated."); st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
 
-# --- TAB 2: FORMATS [LOCKED] ---
+# --- TAB 2 & 3: FORMATS & SETTINGS [LOCKED] ---
+# ... (Full tabs preserved as per last update) ...
 with tab_fmt:
     st.write("### Museum Standards Library")
     if st.session_state.specs:
@@ -160,7 +175,6 @@ with tab_fmt:
         if st.form_submit_button("ADD TO SYSTEM"):
             st.session_state.specs.append({"category": n_cat.upper(), "label": n_lab, "width": int(n_w), "height": int(n_h), "ratio": calculate_ratio(int(n_w), int(n_h)), "ext": n_ext, "quality": n_q}); save_specs_to_disk(); st.rerun()
 
-# --- TAB 3: SETTINGS [LOCKED] ---
 with tab_set:
     st.write("### Workflow Settings")
     st.session_state.proj_name = st.text_input("Project Export Name", value=st.session_state.proj_name)

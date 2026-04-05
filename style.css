@@ -4,7 +4,7 @@
     background-color: #0e1117;
 }
 
-/* --- THE PERFECT DROP ZONE (Transparent & Centered) --- */
+/* --- THE PERFECT DROP ZONE (Locked) --- */
 [data-testid="stFileUploader"] {
     background-color: transparent !important;
     padding: 60px 20px !important;
@@ -29,25 +29,20 @@
     justify-content: center !important;
 }
 
-/* --- INLINE HEADER TOGGLE: NO STACKING --- */
-.header-row {
-    display: flex !important;
-    align-items: center !important;
-    gap: 12px; /* This controls the "few pixels to the right" */
-    margin-top: 50px !important;
-    margin-bottom: 20px !important;
-    border-bottom: 1px solid #222;
-    padding-bottom: 8px;
-    width: 100%;
-}
-
+/* --- REFINED HEADER: NO STACKING --- */
 .cat-header-text {
     font-size: 11px;
     font-weight: 800;
     color: #444;
     letter-spacing: 3px;
     text-transform: uppercase;
-    white-space: nowrap; /* Prevents text from breaking */
+    white-space: nowrap;
+}
+
+/* Ensure the header columns don't stack/wrap */
+[data-testid="column"]:has(.cat-header-text) {
+    min-width: fit-content !important;
+    flex: 0 0 auto !important;
 }
 
 /* --- THE 2-COLUMN CARDS --- */

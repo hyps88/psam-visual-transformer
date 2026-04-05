@@ -1,209 +1,695 @@
+from __future__ import annotations
+
+import io
+import json
+import math
+import re
+import zipfile
+from dataclasses import dataclass, asdict
+from pathlib import Path
+from typing import Any
+
 import streamlit as st
-from PIL import Image, ImageOps
-import json, os, math, re, io, zipfile
+from PIL import Image, ImageOps, UnidentifiedImageError
 
-# --- 1. INITIALIZATION [LOCKED] ---
-st.set_page_config(page_title="Visual Transformer", layout="wide")
+APP_TITLE = "Visual Transformer"
+DEFAULT_PROJECT_NAME = "PSAM_Export"
+SPECS_FILE = Path("transformer_specs.json")
+CSS_FILE = Path("style.css")
+ALLOWED_UPLOAD_TYPES = ["jpg", "jpeg", "png", "webp"]
+EXPORT_TYPES = ["WebP", "JPEG"]
 
-if 'specs' not in st.session_state:
-    if os.path.exists("transformer_specs.json"):
-        with open("transformer_specs.json", "r") as f:
-            st.session_state.specs = json.load(f).get('formats', [])
-    else: st.session_state.specs = []
 
-if 'proj_name' not in st.session_state:
-    st.session_state.proj_name = "PSAM_Export"
+@dataclass
+class FormatSpec:
+    category: str
+    label: str
+    width: int
+    height: int
+    ext: str = "WebP"
+    quality: int = 95
 
-if 'img_idx' not in st.session_state: st.session_state.img_idx = 0
-if 'align_map' not in st.session_state: st.session_state.align_map = {}
+    def normalized(self) -> "FormatSpec":
+        category = (self.category or "OTHER").strip().upper()
+        label = (self.label or "Untitled").strip()
+        width = max(1, int(self.width))
+        height = max(1, int(self.height))
+        ext = normalize_export_type(self.ext)
+        quality = max(10, min(100, int(self.quality)))
+        return FormatSpec(
+            category=category,
+            label=label,
+            width=width,
+            height=height,
+            ext=ext,
+            quality=quality,
+        )
 
-# --- 2. HELPERS [LOCKED] ---
-def calculate_ratio(w, h):
-    if not w or not h: return "1:1"
-    gcd = math.gcd(int(w), int(h))
-    return f"{int(w)//gcd}:{int(h)//gcd}"
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self.normalized())
 
-def save_specs_to_disk():
-    with open("transformer_specs.json", "w") as f:
-        json.dump({"formats": st.session_state.specs}, f, indent=4)
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any]) -> "FormatSpec":
+        return cls(
+            category=str(raw.get("category", "OTHER")),
+            label=str(raw.get("label", "Untitled")),
+            width=int(raw.get("width", 1080)),
+            height=int(raw.get("height", 1080)),
+            ext=str(raw.get("ext", "WebP")),
+            quality=int(raw.get("quality", 95)),
+        ).normalized()
 
-def load_css(file_name):
-    if os.path.exists(file_name):
-        with open(file_name) as f:
-            st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
-def get_svg_rect(ratio_str):
+def normalize_export_type(value: str | None) -> str:
+    if not value:
+        return "WebP"
+    value_upper = str(value).strip().upper()
+    if value_upper in {"JPG", "JPEG"}:
+        return "JPEG"
+    return "WebP"
+
+
+def sanitize_filename(value: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._]+", "_", value.strip())
+    cleaned = re.sub(r"_+", "_", cleaned).strip("._")
+    return cleaned or "file"
+
+
+def aspect_ratio_text(width: int, height: int) -> str:
+    if width <= 0 or height <= 0:
+        return "1:1"
+    divisor = math.gcd(width, height)
+    return f"{width // divisor}:{height // divisor}"
+
+
+def fit_preview_width(width: int, height: int, max_side: int = 500) -> tuple[int, int]:
+    if width <= 0 or height <= 0:
+        return max_side, max_side
+    ratio = width / height
+    if ratio >= 1:
+        return max_side, max(1, int(max_side / ratio))
+    return max(1, int(max_side * ratio)), max_side
+
+
+def svg_ratio_box(width: int, height: int) -> str:
+    if width <= 0 or height <= 0:
+        return ""
+
+    max_dim = 40
+    if width >= height:
+        box_w = max_dim
+        box_h = max(8, int(max_dim * (height / width)))
+    else:
+        box_h = max_dim
+        box_w = max(8, int(max_dim * (width / height)))
+
+    return f"""
+    <div style="display:flex;align-items:center;justify-content:center;height:42px;">
+        <svg width="{box_w + 8}" height="{box_h + 8}" viewBox="0 0 {box_w + 8} {box_h + 8}">
+            <rect x="4" y="4" width="{box_w}" height="{box_h}" rx="3" ry="3"
+                  fill="none" stroke="currentColor" stroke-width="2"/>
+        </svg>
+    </div>
+    """
+
+
+def load_css() -> None:
+    if CSS_FILE.exists():
+        st.markdown(f"<style>{CSS_FILE.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
+
+
+def default_specs_payload() -> dict[str, list[dict[str, Any]]]:
+    return {"formats": []}
+
+
+def load_specs_from_disk() -> list[FormatSpec]:
+    if not SPECS_FILE.exists():
+        return []
+
     try:
-        r_w, r_h = map(int, ratio_str.split(":")); max_d = 35
-        w, h = (max_d, int(max_d*(r_h/r_w))) if r_w > r_h else (int(max_d*(r_w/r_h)), max_d)
-        return f'<svg width="45" height="45"><rect x="{(45-w)/2}" y="{(45-h)/2}" width="{w}" height="{h}" fill="none" stroke="#f36e2e" stroke-width="2.5"/></svg>'
-    except: return ""
+        payload = json.loads(SPECS_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        st.warning("Could not read transformer_specs.json. Starting with an empty library.")
+        return []
 
-def sanitize(name):
-    return re.sub(r'[^a-zA-Z0-9]', '_', name)
+    raw_formats = payload.get("formats", [])
+    parsed: list[FormatSpec] = []
 
-def toggle_section(category_name):
-    master_state = st.session_state[f"master_{category_name}"]
-    for spec in st.session_state.specs:
-        if spec.get('category') == category_name:
-            st.session_state[f"run_{spec['label']}"] = master_state
+    if not isinstance(raw_formats, list):
+        return []
 
-load_css('style.css')
+    for item in raw_formats:
+        if not isinstance(item, dict):
+            continue
+        try:
+            parsed.append(FormatSpec.from_dict(item))
+        except (TypeError, ValueError):
+            continue
 
-# --- 3. INTERFACE ---
-tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
+    return parsed
 
-# --- TAB 1: TRANSFORMER [LOCKED] ---
-with tab_run:
-    uploaded_files = st.file_uploader("Drag & Drop", type=['jpg', 'png', 'webp'], accept_multiple_files=True, label_visibility="collapsed")
 
-    if uploaded_files:
-        if st.session_state.img_idx >= len(uploaded_files): st.session_state.img_idx = 0
-        cur_file = uploaded_files[st.session_state.img_idx]
-        
-        st.write(" ")
-        cust_active = st.toggle("Custom Settings", value=False)
-        selected_formats = []
+def save_specs_to_disk(specs: list[FormatSpec]) -> None:
+    payload = {"formats": [spec.to_dict() for spec in specs]}
+    SPECS_FILE.write_text(json.dumps(payload, indent=4), encoding="utf-8")
 
-        if cust_active:
-            with st.container(border=True):
-                col_locks = st.columns(2)
-                l_ar = col_locks[0].checkbox("Lock Aspect Ratio", value=False)
-                l_sz = col_locks[1].checkbox("Set Original Size (Override)", value=False)
-                
-                img_ref = Image.open(cur_file)
-                ow, oh = img_ref.size
-                
-                c1, c2, c3, c4 = st.columns([2, 2, 2, 3])
-                
-                # Live Injection of Original Dimensions
-                w_val = ow if l_sz else 1080
-                cust_w = c1.number_input(f"Width {'(Original)' if l_sz else ''}", value=w_val, disabled=l_sz, key="cw_in")
-                
-                if l_ar:
-                    cust_h = int(cust_w * (oh / ow))
-                    c2.number_input("Height (Locked)", value=cust_h, disabled=True)
-                else:
-                    h_val = oh if l_sz else 1080
-                    cust_h = c2.number_input(f"Height {'(Original)' if l_sz else ''}", value=h_val, disabled=l_sz, key="ch_in")
-                
-                cust_ext = c3.selectbox("Format", ["WebP", "JPEG"], key="ce_in")
-                cust_q = c4.slider("Export Quality (100 = Lossless)", 10, 100, 95, key="cq_in")
 
-                with st.expander("👁️ Preview & Individual Alignment", expanded=True):
-                    if cur_file.name not in st.session_state.align_map:
-                        st.session_state.align_map[cur_file.name] = {"x": 50, "y": 50}
-                    
-                    state = st.session_state.align_map[cur_file.name]
-                    pcol_img, pcol_ctrl = st.columns([1, 1])
-                    
-                    with pcol_ctrl:
-                        st.write("**Alignment for this Image**")
-                        mx = st.slider("X-Axis", 0, 100, state["x"], key=f"x_{cur_file.name}")
-                        my = st.slider("Y-Axis", 0, 100, state["y"], key=f"y_{cur_file.name}")
-                        state["x"], state["y"] = mx, my
-                        st.session_state.align_map[cur_file.name] = state
+def ensure_session_state() -> None:
+    if "specs" not in st.session_state:
+        st.session_state.specs = load_specs_from_disk()
 
-                        st.divider()
-                        nc1, nc2, nc3 = st.columns([1, 4, 1])
-                        with nc1:
-                            st.markdown('<div class="nav-chevron-trigger">', unsafe_allow_html=True)
-                            if st.button("〈", key="b_prev"):
-                                st.session_state.img_idx = (st.session_state.img_idx - 1) % len(uploaded_files)
-                                st.rerun()
-                            st.markdown('</div>', unsafe_allow_html=True)
-                        with nc2:
-                            st.markdown(f'<center><small>Image {st.session_state.img_idx + 1} of {len(uploaded_files)}</small><br><b>{cur_file.name}</b></center>', unsafe_allow_html=True)
-                        with nc3:
-                            st.markdown('<div class="nav-chevron-trigger">', unsafe_allow_html=True)
-                            if st.button("〉", key="b_next"):
-                                st.session_state.img_idx = (st.session_state.img_idx + 1) % len(uploaded_files)
-                                st.rerun()
-                            st.markdown('</div>', unsafe_allow_html=True)
+    if "project_name" not in st.session_state:
+        st.session_state.project_name = DEFAULT_PROJECT_NAME
 
-                    with pcol_img:
-                        asp = cust_w / cust_h
-                        sw, sh = (500, int(500/asp)) if asp > 1 else (int(500*asp), 500)
-                        crop = ImageOps.fit(img_ref.convert("RGB"), (cust_w, cust_h), method=Image.Resampling.LANCZOS, centering=(state["x"]/100, state["y"]/100))
-                        st.image(crop, width=sw)
-            
-            selected_formats.append({"label": "Custom", "width": cust_w, "height": cust_h, "ext": cust_ext, "quality": cust_q})
+    if "image_index" not in st.session_state:
+        st.session_state.image_index = 0
 
-        st.write(" ")
-        show_templates = st.toggle("Templates", value=False)
-        if show_templates:
-            cats = sorted(list(set(s.get('category', 'OTHER') for s in st.session_state.specs)))
-            for cat in cats:
-                cat_specs = [s for s in st.session_state.specs if s.get('category') == cat]
-                h_cols = st.columns([0.1, 0.05, 0.85]) 
-                with h_cols[0]: st.markdown(f'<p class="cat-header-text" style="padding-top: 5px;">{cat}</p>', unsafe_allow_html=True)
-                with h_cols[1]: st.checkbox("", value=False, key=f"master_{cat}", on_change=toggle_section, args=(cat,), label_visibility="collapsed")
-                for i in range(0, len(cat_specs), 2):
-                    row_specs = cat_specs[i:i+2]
-                    grid_cols = st.columns(2)
-                    for idx, spec in enumerate(row_specs):
-                        with grid_cols[idx]:
-                            with st.container(border=True):
-                                i_c, n_c, s_c = st.columns([1, 6, 1])
-                                with i_c: st.markdown(get_svg_rect(calculate_ratio(spec['width'], spec['height'])), unsafe_allow_html=True)
-                                with n_c:
-                                    st.markdown(f'<div class="card-label">{spec["label"]}</div>', unsafe_allow_html=True)
-                                    st.markdown(f'<div class="card-subline">{spec["width"]}x{spec["height"]} — {spec.get("ext","WebP").upper()}</div>', unsafe_allow_html=True)
-                                with s_c:
-                                    if st.checkbox("", value=st.session_state.get(f"run_{spec['label']}", False), key=f"run_{spec['label']}", label_visibility="collapsed"):
-                                        selected_formats.append(spec)
+    if "align_map" not in st.session_state:
+        st.session_state.align_map = {}
 
+    if "template_selection" not in st.session_state:
+        st.session_state.template_selection = {}
+
+    if "custom_enabled" not in st.session_state:
+        st.session_state.custom_enabled = False
+
+    if "templates_enabled" not in st.session_state:
+        st.session_state.templates_enabled = True
+
+
+@st.cache_data(show_spinner=False)
+def get_upload_bytes(file_name: str, file_bytes: bytes) -> bytes:
+    return file_bytes
+
+
+def open_uploaded_image(uploaded_file) -> Image.Image:
+    raw_bytes = get_upload_bytes(uploaded_file.name, uploaded_file.getvalue())
+    try:
+        image = Image.open(io.BytesIO(raw_bytes))
+        image.load()
+        return image
+    except (UnidentifiedImageError, OSError) as exc:
+        raise ValueError(f"Could not open image: {uploaded_file.name}") from exc
+
+
+def get_alignment_for_name(file_name: str) -> dict[str, int]:
+    existing = st.session_state.align_map.get(file_name, {"x": 50, "y": 50})
+    x = int(existing.get("x", 50))
+    y = int(existing.get("y", 50))
+    x = min(100, max(0, x))
+    y = min(100, max(0, y))
+    value = {"x": x, "y": y}
+    st.session_state.align_map[file_name] = value
+    return value
+
+
+def unique_format_key(label: str, width: int, height: int, ext: str, quality: int) -> str:
+    return f"{label}|{width}|{height}|{ext}|{quality}"
+
+
+def make_preview(
+    image: Image.Image,
+    width: int,
+    height: int,
+    center_x: float = 0.5,
+    center_y: float = 0.5,
+) -> Image.Image:
+    return ImageOps.fit(
+        image.convert("RGB"),
+        (width, height),
+        method=Image.Resampling.LANCZOS,
+        centering=(center_x, center_y),
+    )
+
+
+def export_image_to_bytes(image: Image.Image, spec: FormatSpec) -> bytes:
+    buf = io.BytesIO()
+    if spec.ext == "JPEG":
+        image.save(
+            buf,
+            format="JPEG",
+            quality=spec.quality,
+            optimize=True,
+            subsampling=0 if spec.quality >= 95 else 2,
+        )
+    else:
+        image.save(
+            buf,
+            format="WEBP",
+            quality=spec.quality,
+            lossless=(spec.quality == 100),
+            method=6,
+        )
+    return buf.getvalue()
+
+
+def render_template_selector() -> list[FormatSpec]:
+    specs: list[FormatSpec] = st.session_state.specs
+    if not specs:
+        st.info("No saved formats yet. Add some in the Formats tab.")
+        return []
+
+    selected: list[FormatSpec] = []
+    categories = sorted({spec.category for spec in specs})
+
+    for category in categories:
+        cat_specs = [spec for spec in specs if spec.category == category]
+        master_key = f"master_toggle_{category}"
+
+        header_cols = st.columns([0.85, 0.15])
+        with header_cols[0]:
+            st.markdown(f"### {category}")
+        with header_cols[1]:
+            if st.button("All", key=f"{master_key}_all", use_container_width=True):
+                for spec in cat_specs:
+                    st.session_state.template_selection[
+                        unique_format_key(spec.label, spec.width, spec.height, spec.ext, spec.quality)
+                    ] = True
+            if st.button("None", key=f"{master_key}_none", use_container_width=True):
+                for spec in cat_specs:
+                    st.session_state.template_selection[
+                        unique_format_key(spec.label, spec.width, spec.height, spec.ext, spec.quality)
+                    ] = False
+
+        for start in range(0, len(cat_specs), 2):
+            row_items = cat_specs[start : start + 2]
+            cols = st.columns(2)
+
+            for idx, spec in enumerate(row_items):
+                spec_key = unique_format_key(spec.label, spec.width, spec.height, spec.ext, spec.quality)
+                current_value = bool(st.session_state.template_selection.get(spec_key, False))
+
+                with cols[idx]:
+                    with st.container(border=True):
+                        icon_col, text_col, check_col = st.columns([1, 5, 1])
+                        with icon_col:
+                            st.markdown(svg_ratio_box(spec.width, spec.height), unsafe_allow_html=True)
+                        with text_col:
+                            st.markdown(f"**{spec.label}**")
+                            st.caption(
+                                f"{spec.width} x {spec.height}  |  "
+                                f"{aspect_ratio_text(spec.width, spec.height)}  |  "
+                                f"{spec.ext}  |  Q{spec.quality}"
+                            )
+                        with check_col:
+                            new_value = st.checkbox(
+                                "Use",
+                                value=current_value,
+                                key=f"tpl_{spec_key}",
+                                label_visibility="collapsed",
+                            )
+                            st.session_state.template_selection[spec_key] = new_value
+
+                        if st.session_state.template_selection.get(spec_key):
+                            selected.append(spec)
+
+    return selected
+
+
+def build_export_zip(uploaded_files: list[Any], selected_formats: list[tuple[FormatSpec, bool]]) -> bytes:
+    total_jobs = len(uploaded_files) * len(selected_formats)
+    progress = st.progress(0)
+    status = st.empty()
+
+    zip_buffer = io.BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+        completed = 0
+
+        for uploaded in uploaded_files:
+            source_image = open_uploaded_image(uploaded).convert("RGB")
+            file_stub = sanitize_filename(Path(uploaded.name).stem)
+            align = get_alignment_for_name(uploaded.name)
+            custom_center = (align["x"] / 100, align["y"] / 100)
+
+            for spec, use_custom_alignment in selected_formats:
+                completed += 1
+                center = custom_center if use_custom_alignment else (0.5, 0.5)
+
+                rendered = make_preview(
+                    source_image,
+                    spec.width,
+                    spec.height,
+                    center_x=center[0],
+                    center_y=center[1],
+                )
+
+                out_ext = "jpg" if spec.ext == "JPEG" else "webp"
+                out_name = sanitize_filename(f"PSAM_{file_stub}_{spec.label}.{out_ext}")
+
+                archive.writestr(out_name, export_image_to_bytes(rendered, spec))
+
+                percent = int((completed / total_jobs) * 100) if total_jobs else 100
+                progress.progress(percent)
+                status.text(f"Processing {completed} of {total_jobs}: {uploaded.name}")
+
+    progress.progress(100)
+    status.text("Export ready")
+    return zip_buffer.getvalue()
+
+
+def transformer_tab() -> None:
+    st.subheader("Transformer")
+
+    uploaded_files = st.file_uploader(
+        "Drag and drop images",
+        type=ALLOWED_UPLOAD_TYPES,
+        accept_multiple_files=True,
+        label_visibility="collapsed",
+    )
+
+    if not uploaded_files:
+        st.info("Upload one or more JPG, PNG, or WebP files to begin.")
+        return
+
+    if st.session_state.image_index >= len(uploaded_files):
+        st.session_state.image_index = 0
+
+    current_file = uploaded_files[st.session_state.image_index]
+
+    try:
+        source_image = open_uploaded_image(current_file)
+    except ValueError as exc:
+        st.error(str(exc))
+        return
+
+    source_width, source_height = source_image.size
+    alignment = get_alignment_for_name(current_file.name)
+
+    nav_cols = st.columns([1, 4, 1])
+    with nav_cols[0]:
+        if st.button("Previous", use_container_width=True):
+            st.session_state.image_index = (st.session_state.image_index - 1) % len(uploaded_files)
+            st.rerun()
+    with nav_cols[1]:
+        st.markdown(
+            f"**Image {st.session_state.image_index + 1} of {len(uploaded_files)}**  \n"
+            f"{current_file.name}  \n"
+            f"{source_width} x {source_height}  |  {aspect_ratio_text(source_width, source_height)}"
+        )
+    with nav_cols[2]:
+        if st.button("Next", use_container_width=True):
+            st.session_state.image_index = (st.session_state.image_index + 1) % len(uploaded_files)
+            st.rerun()
+
+    st.divider()
+
+    st.session_state.custom_enabled = st.toggle(
+        "Custom Settings",
+        value=st.session_state.custom_enabled,
+    )
+    st.session_state.templates_enabled = st.toggle(
+        "Templates",
+        value=st.session_state.templates_enabled,
+    )
+
+    selected_exports: list[tuple[FormatSpec, bool]] = []
+
+    if st.session_state.custom_enabled:
+        with st.container(border=True):
+            st.markdown("### Custom Export")
+
+            lock_cols = st.columns(2)
+            lock_aspect = lock_cols[0].checkbox("Lock aspect ratio", value=False)
+            use_original_size = lock_cols[1].checkbox("Use original size", value=False)
+
+            input_cols = st.columns(4)
+
+            default_width = source_width if use_original_size else 1080
+            custom_width = input_cols[0].number_input(
+                "Width",
+                min_value=1,
+                value=int(default_width),
+                step=1,
+                disabled=use_original_size,
+            )
+
+            if lock_aspect:
+                custom_height = max(1, int(round(custom_width * source_height / source_width)))
+                input_cols[1].number_input(
+                    "Height",
+                    min_value=1,
+                    value=int(custom_height),
+                    step=1,
+                    disabled=True,
+                )
+            else:
+                default_height = source_height if use_original_size else 1080
+                custom_height = input_cols[1].number_input(
+                    "Height",
+                    min_value=1,
+                    value=int(default_height),
+                    step=1,
+                    disabled=use_original_size,
+                )
+
+            custom_ext = input_cols[2].selectbox("Format", EXPORT_TYPES, index=0)
+            custom_quality = input_cols[3].slider("Quality", 10, 100, 95)
+
+            preview_cols = st.columns([1, 1])
+
+            with preview_cols[0]:
+                st.markdown("### Preview")
+                preview_image = make_preview(
+                    source_image,
+                    int(custom_width),
+                    int(custom_height),
+                    center_x=alignment["x"] / 100,
+                    center_y=alignment["y"] / 100,
+                )
+                display_w, _ = fit_preview_width(int(custom_width), int(custom_height))
+                st.image(preview_image, width=display_w)
+
+            with preview_cols[1]:
+                st.markdown("### Alignment")
+                new_x = st.slider("Horizontal crop", 0, 100, int(alignment["x"]))
+                new_y = st.slider("Vertical crop", 0, 100, int(alignment["y"]))
+                st.session_state.align_map[current_file.name] = {"x": new_x, "y": new_y}
+
+            custom_spec = FormatSpec(
+                category="CUSTOM",
+                label="Custom",
+                width=int(custom_width),
+                height=int(custom_height),
+                ext=custom_ext,
+                quality=int(custom_quality),
+            ).normalized()
+
+            st.caption(
+                f"{custom_spec.width} x {custom_spec.height}  |  "
+                f"{aspect_ratio_text(custom_spec.width, custom_spec.height)}  |  "
+                f"{custom_spec.ext}  |  Q{custom_spec.quality}"
+            )
+
+            selected_exports.append((custom_spec, True))
+
+    if st.session_state.templates_enabled:
         st.divider()
-        if st.button("GENERATE ALL ASSETS", use_container_width=True):
-            if selected_formats:
-                zip_buffer = io.BytesIO()
-                total = len(uploaded_files) * len(selected_formats)
-                step = 0
-                pb = st.progress(0); st_text = st.empty()
+        template_specs = render_template_selector()
+        selected_exports.extend((spec, False) for spec in template_specs)
 
-                with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zf:
-                    for up in uploaded_files:
-                        img = Image.open(up).convert("RGB")
-                        bn = sanitize(os.path.splitext(up.name)[0])
-                        align = st.session_state.align_map.get(up.name, {"x": 50, "y": 50})
-                        for sp in selected_formats:
-                            step += 1
-                            pb.progress(min(int((step/total)*100), 100))
-                            st_text.text(f"Processing: {bn}")
-                            t_cx, t_cy = (align["x"]/100, align["y"]/100) if sp['label'] == "Custom" else (0.5, 0.5)
-                            res = ImageOps.fit(img, (sp['width'], sp['height']), method=Image.Resampling.LANCZOS, centering=(t_cx, t_cy))
-                            fn = f"PSAM_{bn}_{sanitize(sp['label'])}.{sp.get('ext','webp').lower()}"
-                            buf = io.BytesIO()
-                            if sp.get('ext') == "JPEG": res.save(buf, format="JPEG", quality=sp.get('quality', 95), subsampling=0 if sp.get('quality')==100 else 2, optimize=True)
-                            else: res.save(buf, format="WEBP", quality=sp.get('quality', 95), lossless=(sp.get('quality')==100), method=4)
-                            zf.writestr(fn, buf.getvalue())
-                
-                st_text.text("Export Ready!")
-                st.success("Batch Generated."); st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
-
-# --- TAB 2: FORMATS [RESTORED] ---
-with tab_fmt:
-    st.write("### Museum Standards Library")
-    if st.session_state.specs:
-        for idx, spec in enumerate(st.session_state.specs):
-            with st.expander(f"{spec.get('category', 'OTHER')}: {spec.get('label', 'Unnamed')}"):
-                l = st.text_input("Label", spec.get('label', ''), key=f"el_{idx}")
-                c1, c2 = st.columns(2); w = c1.number_input("Width", value=int(spec.get('width', 1080)), key=f"ew_{idx}"); h = c2.number_input("Height", value=int(spec.get('height', 1080)), key=f"eh_{idx}")
-                c3, c4 = st.columns(2); e = c3.selectbox("Type", ["WebP", "JPEG"], index=0 if spec.get('ext')=='WebP' else 1, key=f"ee_{idx}"); q = c4.slider("Q", 10, 100, spec.get('quality', 85), key=f"eq_{idx}")
-                if st.button("Save Changes", key=f"sv_{idx}"):
-                    st.session_state.specs[idx].update({"label": l, "width": int(w), "height": int(h), "ext": e, "quality": q}); save_specs_to_disk(); st.rerun()
-                if st.button("Remove Format", key=f"dl_{idx}"): st.session_state.specs.pop(idx); save_specs_to_disk(); st.rerun()
     st.divider()
-    with st.form("new_std"):
-        st.write("#### Add New Permanent Format")
-        n_cat = st.text_input("Category", "SOCIAL"); n_lab = st.text_input("Name"); n_ext = st.selectbox("Type", ["WebP", "JPEG"]); n_q = st.slider("Quality", 10, 100, 85); n_w = st.number_input("Width", 1080); n_h = st.number_input("Height", 1080)
-        if st.form_submit_button("ADD TO SYSTEM"):
-            st.session_state.specs.append({"category": n_cat.upper(), "label": n_lab, "width": int(n_w), "height": int(n_h), "ext": n_ext, "quality": n_q}); save_specs_to_disk(); st.rerun()
 
-# --- TAB 3: SETTINGS [RESTORED] ---
-with tab_set:
-    st.write("### Workflow Settings")
-    st.session_state.proj_name = st.text_input("Project Name", value=st.session_state.proj_name)
+    deduped: list[tuple[FormatSpec, bool]] = []
+    seen = set()
+
+    for spec, use_custom_alignment in selected_exports:
+        key = unique_format_key(spec.label, spec.width, spec.height, spec.ext, spec.quality)
+        if (key, use_custom_alignment) in seen:
+            continue
+        seen.add((key, use_custom_alignment))
+        deduped.append((spec, use_custom_alignment))
+
+    st.markdown(f"**Selected outputs:** {len(deduped)}")
+
+    if st.button("Generate All Assets", type="primary", use_container_width=True):
+        if not deduped:
+            st.warning("Select at least one custom export or saved format.")
+            return
+
+        try:
+            zip_bytes = build_export_zip(uploaded_files, deduped)
+        except Exception as exc:
+            st.error(f"Export failed: {exc}")
+            return
+
+        st.success("Batch generated successfully.")
+        st.download_button(
+            "Download ZIP",
+            data=zip_bytes,
+            file_name=f"{sanitize_filename(st.session_state.project_name)}.zip",
+            mime="application/zip",
+            use_container_width=True,
+        )
+
+
+def formats_tab() -> None:
+    st.subheader("Museum Standards Library")
+
+    specs: list[FormatSpec] = st.session_state.specs
+
+    if not specs:
+        st.info("No saved formats yet.")
+    else:
+        for idx, spec in enumerate(specs):
+            with st.expander(f"{spec.category}: {spec.label}", expanded=False):
+                label = st.text_input("Label", value=spec.label, key=f"label_{idx}")
+                category = st.text_input("Category", value=spec.category, key=f"category_{idx}")
+
+                size_cols = st.columns(2)
+                width = size_cols[0].number_input(
+                    "Width",
+                    min_value=1,
+                    value=int(spec.width),
+                    step=1,
+                    key=f"width_{idx}",
+                )
+                height = size_cols[1].number_input(
+                    "Height",
+                    min_value=1,
+                    value=int(spec.height),
+                    step=1,
+                    key=f"height_{idx}",
+                )
+
+                type_cols = st.columns(2)
+                ext = type_cols[0].selectbox(
+                    "Type",
+                    EXPORT_TYPES,
+                    index=0 if spec.ext == "WebP" else 1,
+                    key=f"ext_{idx}",
+                )
+                quality = type_cols[1].slider(
+                    "Quality",
+                    10,
+                    100,
+                    int(spec.quality),
+                    key=f"quality_{idx}",
+                )
+
+                action_cols = st.columns(2)
+                with action_cols[0]:
+                    if st.button("Save Changes", key=f"save_{idx}", use_container_width=True):
+                        updated = FormatSpec(
+                            category=category,
+                            label=label,
+                            width=int(width),
+                            height=int(height),
+                            ext=ext,
+                            quality=int(quality),
+                        ).normalized()
+                        st.session_state.specs[idx] = updated
+                        save_specs_to_disk(st.session_state.specs)
+                        st.success("Format updated.")
+                        st.rerun()
+
+                with action_cols[1]:
+                    if st.button("Remove Format", key=f"remove_{idx}", use_container_width=True):
+                        st.session_state.specs.pop(idx)
+                        save_specs_to_disk(st.session_state.specs)
+                        st.success("Format removed.")
+                        st.rerun()
+
     st.divider()
-    json_data = json.dumps({"formats": st.session_state.specs}, indent=4)
-    st.download_button("💾 EXPORT LIBRARY (JSON)", data=json_data, file_name="psam_library.json")
+
+    with st.form("add_new_format", clear_on_submit=False):
+        st.markdown("### Add New Permanent Format")
+
+        new_category = st.text_input("Category", value="SOCIAL")
+        new_label = st.text_input("Name")
+        new_cols = st.columns(2)
+        new_width = new_cols[0].number_input("Width", min_value=1, value=1080, step=1)
+        new_height = new_cols[1].number_input("Height", min_value=1, value=1080, step=1)
+
+        new_type_cols = st.columns(2)
+        new_ext = new_type_cols[0].selectbox("Type", EXPORT_TYPES, index=0)
+        new_quality = new_type_cols[1].slider("Quality", 10, 100, 95)
+
+        submitted = st.form_submit_button("Add To System", use_container_width=True)
+
+        if submitted:
+            if not new_label.strip():
+                st.warning("Format name is required.")
+            else:
+                spec = FormatSpec(
+                    category=new_category,
+                    label=new_label,
+                    width=int(new_width),
+                    height=int(new_height),
+                    ext=new_ext,
+                    quality=int(new_quality),
+                ).normalized()
+                st.session_state.specs.append(spec)
+                save_specs_to_disk(st.session_state.specs)
+                st.success("Format added.")
+                st.rerun()
+
+
+def settings_tab() -> None:
+    st.subheader("Workflow Settings")
+
+    st.session_state.project_name = st.text_input(
+        "Project Name",
+        value=st.session_state.project_name,
+    )
+
+    st.divider()
+
+    export_json = json.dumps(
+        {"formats": [spec.to_dict() for spec in st.session_state.specs]},
+        indent=4,
+    )
+
+    st.download_button(
+        "Export Library JSON",
+        data=export_json,
+        file_name="psam_library.json",
+        mime="application/json",
+        use_container_width=True,
+    )
+
+    uploaded_json = st.file_uploader(
+        "Import Library JSON",
+        type=["json"],
+        accept_multiple_files=False,
+    )
+
+    if uploaded_json is not None:
+        try:
+            payload = json.loads(uploaded_json.getvalue().decode("utf-8"))
+            imported_specs = [
+                FormatSpec.from_dict(item)
+                for item in payload.get("formats", [])
+                if isinstance(item, dict)
+            ]
+            st.session_state.specs = imported_specs
+            save_specs_to_disk(st.session_state.specs)
+            st.success("Library imported successfully.")
+            st.rerun()
+        except Exception:
+            st.error("Invalid JSON library file.")
+
+
+def main() -> None:
+    st.set_page_config(page_title=APP_TITLE, layout="wide")
+    load_css()
+    ensure_session_state()
+
+    st.title(APP_TITLE)
+
+    tab_transformer, tab_formats, tab_settings = st.tabs(
+        ["Transformer", "Formats", "Settings"]
+    )
+
+    with tab_transformer:
+        transformer_tab()
+
+    with tab_formats:
+        formats_tab()
+
+    with tab_settings:
+        settings_tab()
+
+
+if __name__ == "__main__":
+    main()

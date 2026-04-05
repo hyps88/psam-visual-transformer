@@ -17,9 +17,12 @@ if 'proj_name' not in st.session_state:
 if 'img_idx' not in st.session_state: st.session_state.img_idx = 0
 if 'align_map' not in st.session_state: st.session_state.align_map = {}
 
-# FIXED: Ensure Templates toggle state is preserved during reruns
-if 'show_templates_state' not in st.session_state: 
-    st.session_state.show_templates_state = False
+# --- NEW: PERSISTENT STATE CALLBACKS ---
+def move_nav(direction, total):
+    if direction == "next":
+        st.session_state.img_idx = (st.session_state.img_idx + 1) % total
+    else:
+        st.session_state.img_idx = (st.session_state.img_idx - 1) % total
 
 # --- 2. HELPERS [LOCKED] ---
 def calculate_ratio(w, h):
@@ -57,7 +60,7 @@ load_css('style.css')
 # --- 3. INTERFACE ---
 tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
-# --- TAB 1: TRANSFORMER ---
+# --- TAB 1: TRANSFORMER [LOCKED] ---
 with tab_run:
     uploaded_files = st.file_uploader("Drag & Drop", type=['jpg', 'png', 'webp'], accept_multiple_files=True, label_visibility="collapsed")
 
@@ -110,17 +113,14 @@ with tab_run:
                         nc1, nc2, nc3 = st.columns([1, 4, 1])
                         with nc1:
                             st.markdown('<div class="nav-chevron-trigger">', unsafe_allow_html=True)
-                            if st.button("〈", key="b_prev"):
-                                st.session_state.img_idx = (st.session_state.img_idx - 1) % len(uploaded_files)
-                                st.rerun()
+                            # Using Callback to preserve session state
+                            st.button("〈", key="b_prev", on_click=move_nav, args=("prev", len(uploaded_files)))
                             st.markdown('</div>', unsafe_allow_html=True)
                         with nc2:
                             st.markdown(f'<center><small>Image {st.session_state.img_idx + 1} of {len(uploaded_files)}</small><br><b>{cur_file.name}</b></center>', unsafe_allow_html=True)
                         with nc3:
                             st.markdown('<div class="nav-chevron-trigger">', unsafe_allow_html=True)
-                            if st.button("〉", key="b_next"):
-                                st.session_state.img_idx = (st.session_state.img_idx + 1) % len(uploaded_files)
-                                st.rerun()
+                            st.button("〉", key="b_next", on_click=move_nav, args=("next", len(uploaded_files)))
                             st.markdown('</div>', unsafe_allow_html=True)
 
                     with pcol_img:
@@ -132,8 +132,8 @@ with tab_run:
             selected_formats.append({"label": "Custom", "width": cust_w, "height": cust_h, "ext": cust_ext, "quality": cust_q})
 
         st.write(" ")
-        # FIXED: Bound toggle to session_state to prevent disappearance
-        show_templates = st.toggle("Templates", key="show_templates_state")
+        # Using a dedicated key ensures the toggle value persists
+        show_templates = st.toggle("Templates", key="sticky_template_toggle")
         
         if show_templates:
             cats = sorted(list(set(s.get('category', 'OTHER') for s in st.session_state.specs)))

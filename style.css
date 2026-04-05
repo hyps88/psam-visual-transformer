@@ -1,31 +1,29 @@
-/* Global Helvetica */
+/* Global Typography */
 .stApp {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
     background-color: #0e1117;
 }
 
-/* --- THE DRAG & DROP BOX: CENTERED & BIG --- */
+/* --- THE DRAG & DROP BOX: CENTERED & GIANT --- */
 [data-testid="stFileUploader"] {
     background-color: #16181a !important;
     padding: 60px 20px !important;
     border-radius: 20px !important;
     border: 3px dashed #333 !important;
-    transition: 0.3s ease;
 }
 
 [data-testid="stFileUploader"]:hover { border-color: #f36e2e !important; }
 
-/* Target the actual "Drag & Drop" text inside the box */
+/* The "Inside" Title */
 [data-testid="stFileUploaderDropzoneInstructions"] div {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
-    font-size: 42px !important; /* Adjusted for better fit, change to 58px if desired */
+    font-size: 58px !important; /* Your specific 58px request */
     font-weight: 700 !important;
     color: #eee !important;
     text-align: center !important;
-    line-height: 1.2 !important;
+    line-height: 1.1 !important;
 }
 
-/* Centering the Browse Button and File List */
+/* Centering the Browse Button */
 [data-testid="stFileUploader"] section {
     display: flex !important;
     flex-direction: column !important;
@@ -33,18 +31,18 @@
     justify-content: center !important;
 }
 
-/* Hide the small "Limit 200MB" text to keep it clean */
+/* Hide the small "Limit 200MB" text */
 [data-testid="stFileUploaderDropzoneInstructions"] small {
     display: none !important;
 }
 
-/* --- FORMAT CARDS: REFINED LAYOUT --- */
+/* --- FORMAT CARDS: CLEAN & SPACIOUS --- */
 [data-testid="stVerticalBlockBorderWrapper"] {
     background-color: #1a1c1e;
     border-radius: 12px;
     border: 1px solid #2b2b2b;
-    margin-bottom: 15px;
     padding: 15px !important;
+    margin-bottom: 12px;
 }
 
 .format-label {
@@ -53,7 +51,7 @@
     color: white;
 }
 
-/* The Bigger Subline */
+/* The Subline: Bigger & Muted */
 .format-subline {
     font-size: 14px !important; 
     color: #888;
@@ -61,6 +59,15 @@
     font-weight: 500;
 }
 
-/* Tab & Global Styling */
+/* Category Headers */
+.cat-header {
+    font-size: 11px;
+    font-weight: 800;
+    color: #444;
+    letter-spacing: 3px;
+    margin-top: 40px !important;
+    text-transform: uppercase;
+}
+
+/* Tab Styling */
 .stTabs [aria-selected="true"] { color: #f36e2e !important; border-bottom: 2px solid #f36e2e !important; }
-.stButton>button { background-color: #f36e2e; color: white; border-radius: 8px; font-weight: bold; height: 3.5em; }

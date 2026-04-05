@@ -32,6 +32,13 @@ def load_css(file_name):
         with open(file_name) as f:
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
+def get_svg_rect(ratio_str):
+    try:
+        r_w, r_h = map(int, ratio_str.split(":")); max_d = 35
+        w, h = (max_d, int(max_d*(r_h/r_w))) if r_w > r_h else (int(max_d*(r_w/r_h)), max_d)
+        return f'<svg width="45" height="45"><rect x="{(45-w)/2}" y="{(45-h)/2}" width="{w}" height="{h}" fill="none" stroke="#f36e2e" stroke-width="2.5"/></svg>'
+    except: return ""
+
 def sanitize(name):
     return re.sub(r'[^a-zA-Z0-9]', '_', name)
 
@@ -60,9 +67,10 @@ with tab_run:
 
         if cust_active:
             with st.container(border=True):
-                c_l1, c_l2 = st.columns(2)
-                l_ar = c_l1.checkbox("Lock Aspect Ratio", value=False)
-                l_sz = c_l2.checkbox("Set Original Size", value=False)
+                # --- DUAL LOCKS ---
+                col_locks = st.columns(2)
+                l_ar = col_locks[0].checkbox("Lock Aspect Ratio", value=False)
+                l_sz = col_locks[1].checkbox("Set Original Size", value=False)
                 
                 img_ref = Image.open(cur_file)
                 ow, oh = img_ref.size
@@ -82,7 +90,7 @@ with tab_run:
                 cust_q = c4.slider("Export Quality (100 = Lossless)", 10, 100, 95, key="cq_in")
 
                 with st.expander("👁️ Preview & Individual Alignment", expanded=True):
-                    # Robust State Init
+                    # Robust Alignment Engine
                     if cur_file.name not in st.session_state.align_map:
                         st.session_state.align_map[cur_file.name] = {"x": 50, "y": 50, "preset": "Center"}
                     
@@ -91,11 +99,13 @@ with tab_run:
                     
                     with pcol_ctrl:
                         st.write("**Alignment for this Image**")
-                        # Fixed Preset Logic
-                        preset = st.radio("Quick Presets", ["Center", "Top", "Bottom", "Left", "Right", "Manual"], 
-                                          index=["Center", "Top", "Bottom", "Left", "Right", "Manual"].index(state["preset"]),
-                                          horizontal=True, key=f"p_{cur_file.name}")
+                        # Presets fixed with explicit indexing
+                        preset_list = ["Center", "Top", "Bottom", "Left", "Right", "Manual"]
+                        current_preset_idx = preset_list.index(state["preset"])
                         
+                        preset = st.radio("Quick Presets", preset_list, index=current_preset_idx, horizontal=True, key=f"p_{cur_file.name}")
+                        
+                        # Trigger Preset snap
                         if preset != state["preset"] and preset != "Manual":
                             if preset == "Center": state["x"], state["y"] = 50, 50
                             elif preset == "Top": state["x"], state["y"] = 50, 0
@@ -107,12 +117,13 @@ with tab_run:
                         mx = st.slider("X-Axis", 0, 100, state["x"], key=f"x_{cur_file.name}")
                         my = st.slider("Y-Axis", 0, 100, state["y"], key=f"y_{cur_file.name}")
                         
+                        # Manual Override
                         if mx != state["x"] or my != state["y"]:
                             state["x"], state["y"], state["preset"] = mx, my, "Manual"
                         
                         st.session_state.align_map[cur_file.name] = state
 
-                        # Minimalist Nav
+                        # Minimalist Chevron Nav
                         st.divider()
                         nc1, nc2, nc3 = st.columns([1, 4, 1])
                         with nc1:
@@ -134,7 +145,7 @@ with tab_run:
                         asp = cust_w / cust_h
                         sw, sh = (500, int(500/asp)) if asp > 1 else (int(500*asp), 500)
                         crop = ImageOps.fit(img_ref.convert("RGB"), (cust_w, cust_h), method=Image.Resampling.LANCZOS, centering=(state["x"]/100, state["y"]/100))
-                        st.image(crop, width=sw)
+                        st.image(crop, width=sw, caption=f"Individual Preview ({calculate_ratio(cust_w, cust_h)})")
             
             selected_formats.append({"label": "Custom", "width": cust_w, "height": cust_h, "ext": cust_ext, "quality": cust_q})
 
@@ -153,9 +164,15 @@ with tab_run:
                     for idx, spec in enumerate(row_specs):
                         with grid_cols[idx]:
                             with st.container(border=True):
-                                # Logic for selection
-                                is_on = st.checkbox(f"{spec['label']} ({spec['width']}x{spec['height']})", value=st.session_state.get(f"run_{spec['label']}", False), key=f"run_{spec['label']}")
-                                if is_on: selected_formats.append(spec)
+                                # RESTORED: SVG Aspect Rectangles
+                                i_c, n_c, s_c = st.columns([1, 6, 1])
+                                with i_c: st.markdown(get_svg_rect(calculate_ratio(spec['width'], spec['height'])), unsafe_allow_html=True)
+                                with n_c:
+                                    st.markdown(f'<div class="card-label">{spec["label"]}</div>', unsafe_allow_html=True)
+                                    st.markdown(f'<div class="card-subline">{spec["width"]}x{spec["height"]} — {spec.get("ext","WebP").upper()}</div>', unsafe_allow_html=True)
+                                with s_c:
+                                    if st.checkbox("", value=st.session_state.get(f"run_{spec['label']}", False), key=f"run_{spec['label']}", label_visibility="collapsed"):
+                                        selected_formats.append(spec)
 
         st.divider()
         if st.button("GENERATE ALL ASSETS", use_container_width=True):
@@ -182,10 +199,9 @@ with tab_run:
                             else: res.save(buf, format="WEBP", quality=sp.get('quality', 95), lossless=(sp.get('quality')==100), method=4)
                             zf.writestr(fn, buf.getvalue())
                 
-                st_text.text("Done!")
-                st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
+                st_text.text("Done!"); st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
 
-# --- TAB 2: FORMATS [RESTORED] ---
+# --- TAB 2: FORMATS [LOCKED] ---
 with tab_fmt:
     st.write("### Museum Standards Library")
     if st.session_state.specs:
@@ -200,11 +216,11 @@ with tab_fmt:
     st.divider()
     with st.form("new_std"):
         st.write("#### Add Format")
-        n_cat = st.text_input("Cat", "SOCIAL"); n_lab = st.text_input("Name"); n_ext = st.selectbox("Type", ["WebP", "JPEG"]); n_q = st.slider("Q", 10, 100, 85); n_w = st.number_input("W", 1080); n_h = st.number_input("H", 1080)
+        n_cat = st.text_input("Cat", "SOCIAL"); n_lab = st.text_input("Name"); n_ext = n_cat = st.selectbox("Type", ["WebP", "JPEG"]); n_q = st.slider("Q", 10, 100, 85); n_w = st.number_input("W", 1080); n_h = st.number_input("H", 1080)
         if st.form_submit_button("ADD"):
             st.session_state.specs.append({"category": n_cat.upper(), "label": n_lab, "width": int(n_w), "height": int(n_h), "ext": n_ext, "quality": n_q}); save_specs_to_disk(); st.rerun()
 
-# --- TAB 3: SETTINGS [RESTORED] ---
+# --- TAB 3: SETTINGS [LOCKED] ---
 with tab_set:
     st.write("### Workflow Settings")
     st.session_state.proj_name = st.text_input("Project Name", value=st.session_state.proj_name)

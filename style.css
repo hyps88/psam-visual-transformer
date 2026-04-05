@@ -4,30 +4,28 @@
     background-color: #0e1117;
 }
 
-/* --- DRAG & DROP: CENTERED --- */
+/* --- THE DRAG & DROP BOX: CENTERED & BIG --- */
 [data-testid="stFileUploader"] {
     background-color: #16181a !important;
     padding: 60px 20px !important;
     border-radius: 20px !important;
-    border: 2px dashed #333 !important;
+    border: 3px dashed #333 !important;
     transition: 0.3s ease;
 }
 
 [data-testid="stFileUploader"]:hover { border-color: #f36e2e !important; }
 
-/* The "Title" inside the box */
-[data-testid="stFileUploader"] label {
+/* Target the actual "Drag & Drop" text inside the box */
+[data-testid="stFileUploaderDropzoneInstructions"] div {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
-    font-size: 58px !important;
+    font-size: 42px !important; /* Adjusted for better fit, change to 58px if desired */
     font-weight: 700 !important;
     color: #eee !important;
     text-align: center !important;
-    display: block !important;
-    width: 100% !important;
-    margin-bottom: 20px !important;
+    line-height: 1.2 !important;
 }
 
-/* Center the browse button and file list */
+/* Centering the Browse Button and File List */
 [data-testid="stFileUploader"] section {
     display: flex !important;
     flex-direction: column !important;
@@ -35,40 +33,34 @@
     justify-content: center !important;
 }
 
-/* --- FORMAT CARD: REFINED --- */
-/* Target the container to create the card look */
+/* Hide the small "Limit 200MB" text to keep it clean */
+[data-testid="stFileUploaderDropzoneInstructions"] small {
+    display: none !important;
+}
+
+/* --- FORMAT CARDS: REFINED LAYOUT --- */
 [data-testid="stVerticalBlockBorderWrapper"] {
     background-color: #1a1c1e;
     border-radius: 12px;
     border: 1px solid #2b2b2b;
     margin-bottom: 15px;
-    padding: 10px 5px;
+    padding: 15px !important;
 }
 
 .format-label {
     font-size: 18px !important;
     font-weight: 700 !important;
     color: white;
-    margin: 0;
 }
 
+/* The Bigger Subline */
 .format-subline {
-    font-size: 13px !important; /* Made bigger as requested */
+    font-size: 14px !important; 
     color: #888;
-    margin-top: 4px;
+    margin-top: 6px;
+    font-weight: 500;
 }
 
-/* Headers */
-.cat-header {
-    font-size: 11px;
-    font-weight: 800;
-    color: #444;
-    letter-spacing: 3px;
-    margin-top: 20px !important; 
-    margin-bottom: 20px !important;
-    text-transform: uppercase;
-}
-
-/* Tabs & Buttons */
+/* Tab & Global Styling */
 .stTabs [aria-selected="true"] { color: #f36e2e !important; border-bottom: 2px solid #f36e2e !important; }
 .stButton>button { background-color: #f36e2e; color: white; border-radius: 8px; font-weight: bold; height: 3.5em; }

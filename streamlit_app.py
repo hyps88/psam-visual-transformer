@@ -8,16 +8,14 @@ ACCENT_COLOR = "#f36e2e"
 st.set_page_config(page_title="Visual Transformer", layout="wide")
 
 def save_specs_to_disk():
-    """ Keeps your museum standards persistent across sessions """
+    """ Keeps your museum standards persistent """
     with open("transformer_specs.json", "w") as f:
         json.dump({"formats": st.session_state.specs}, f, indent=4)
 
 st.markdown(f"""
     <style>
-    /* Global Helvetica */
     .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0e1117; }}
     
-    /* CATEGORY HEADERS */
     .cat-header {{
         font-size: 11px;
         font-weight: 800;
@@ -28,30 +26,28 @@ st.markdown(f"""
         text-transform: uppercase;
     }}
 
-    /* DISCREET TEXT LINKS: Moved to bottom, tiny and grey */
+    /* DISCREET SELECTION LINKS: Tiny, grey, text-only */
     .discreet-link button {{
         background: transparent !important;
         border: none !important;
         color: #444 !important;
         font-size: 10px !important;
+        font-weight: 500 !important;
         text-decoration: none !important;
         padding: 0 !important;
-        margin-right: 20px !important;
+        margin-right: 25px !important;
         height: auto !important;
     }}
     .discreet-link button:hover {{ color: white !important; text-decoration: underline !important; }}
 
-    /* THE UNIFIED DROP ZONE */
+    /* PERFECTED DROP ZONE: Untouched as requested */
     [data-testid="stFileUploader"] {{
         background-color: #16181a !important;
         padding: 30px 20px !important;
         border-radius: 15px !important;
         border: 2px dashed #333 !important;
-        transition: 0.3s ease;
     }}
     [data-testid="stFileUploader"]:hover {{ border-color: {ACCENT_COLOR} !important; }}
-    
-    /* THE TITLE: Clean Helvetica */
     [data-testid="stFileUploader"] label {{
         display: block !important;
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
@@ -62,19 +58,8 @@ st.markdown(f"""
         margin-bottom: 15px !important;
         width: 100% !important;
     }}
-
-    /* RECTIFY FILE LIST VISIBILITY */
-    [data-testid="stFileUploader"] section {{
-        background: transparent !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-    }}
-    
-    /* Style the internal file items to be cleaner */
+    [data-testid="stFileUploader"] section {{ background: transparent !important; display: flex !important; flex-direction: column !important; align-items: center !important; }}
     [data-testid="stFileUploaderDropzoneInstructions"] {{ display: none !important; }}
-    
-    /* Restore and style the browse button */
     [data-testid="stFileUploader"] section button {{
         background-color: #222 !important;
         color: #888 !important;
@@ -84,7 +69,6 @@ st.markdown(f"""
         font-size: 12px !important;
     }}
 
-    /* TABS & BUTTONS */
     .stTabs [data-baseweb="tab-list"] {{ gap: 40px; border-bottom: 1px solid #222; margin-bottom: 30px; }}
     .stTabs [data-baseweb="tab"] {{ height: 50px; background-color: transparent !important; color: #555 !important; font-weight: 700; }}
     .stTabs [aria-selected="true"] {{ color: {ACCENT_COLOR} !important; border-bottom: 2px solid {ACCENT_COLOR} !important; }}
@@ -122,7 +106,15 @@ if 'proj_name' not in st.session_state:
 tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
 with tab_run:
-    # 4.1 DROP ZONE
+    # 4.1 LOGIC: Handling Select All/None before widgets render
+    if st.session_state.get('trigger_select_all'):
+        for s in st.session_state.specs: st.session_state[f"run_{s['label']}"] = True
+        st.session_state.trigger_select_all = False
+    if st.session_state.get('trigger_select_none'):
+        for s in st.session_state.specs: st.session_state[f"run_{s['label']}"] = False
+        st.session_state.trigger_select_none = False
+
+    # 4.2 DROP ZONE
     uploaded_files = st.file_uploader("Drag & Drop Images Here", type=['jpg', 'png', 'webp'], accept_multiple_files=True)
 
     if uploaded_files:
@@ -140,21 +132,21 @@ with tab_run:
                         c_icon, c_check = st.columns([1, 4])
                         with c_icon: st.markdown(get_svg_rect(spec['ratio']), unsafe_allow_html=True)
                         with c_check:
-                            if st.checkbox(f"{spec['label']} ({spec['width']}x{spec['height']})", value=True, key=f"run_{spec['label']}"):
+                            # Using session state to control checkboxes
+                            if st.checkbox(f"{spec['label']} ({spec['width']}x{spec['height']})", value=st.session_state.get(f"run_{spec['label']}", True), key=f"run_{spec['label']}"):
                                 selected_formats.append(spec)
                             st.markdown(f'<span style="color: #444; font-size: 10px;">{spec.get("ext", "WebP").upper()} @ {spec.get("quality", 85)}%</span>', unsafe_allow_html=True)
 
-        # 4.2 DISCREET SELECTION LINKS: Now moved to bottom
-        st.write(" ")
+        # 4.3 DISCREET SELECTION LINKS: At bottom, text-based
         st.markdown('<div class="discreet-link">', unsafe_allow_html=True)
         t_col1, t_col2, _ = st.columns([1, 1, 8])
         with t_col1:
             if st.button("SELECT ALL"): 
-                for s in st.session_state.specs: st.session_state[f"run_{s['label']}"] = True
+                st.session_state.trigger_select_all = True
                 st.rerun()
         with t_col2:
             if st.button("SELECT NONE"): 
-                for s in st.session_state.specs: st.session_state[f"run_{s['label']}"] = False
+                st.session_state.trigger_select_none = True
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -168,10 +160,9 @@ with tab_run:
                         base_n = sanitize(os.path.splitext(up_file.name)[0])
                         for spec in selected_formats:
                             res = ImageOps.fit(img, (spec['width'], spec['height']), Image.Resampling.LANCZOS)
-                            f_ext = spec.get('ext', 'WebP').upper()
-                            f_name = f"PSAM_{sanitize(spec['label'])}.{f_ext.lower()}"
+                            f_name = f"PSAM_{sanitize(spec['label'])}.{spec.get('ext', 'webp').lower()}"
                             img_io = io.BytesIO()
-                            res.save(img_io, format=f_ext, quality=spec.get('quality', 85))
+                            res.save(img_io, format=spec.get('ext', 'WebP').upper(), quality=spec.get('quality', 85))
                             zip_file.writestr(f"{base_n}/{f_name}", img_io.getvalue())
                 
                 st.success(f"Generated {len(uploaded_files)} images.")
@@ -186,7 +177,7 @@ with tab_fmt:
             w = c1.number_input("Width", value=int(spec['width']), key=f"edit_w_{idx}")
             h = c2.number_input("Height", value=int(spec['height']), key=f"edit_h_{idx}")
             c3, c4 = st.columns(2)
-            e = c3.selectbox("File Format", ["WebP", "JPEG"], index=0 if spec.get('ext', 'WebP') == "WebP" else 1, key=f"edit_e_{idx}")
+            e = c3.selectbox("Format", ["WebP", "JPEG"], index=0 if spec.get('ext', 'WebP') == "WebP" else 1, key=f"edit_e_{idx}")
             q = c4.slider("Quality", 10, 100, spec.get('quality', 85), key=f"edit_q_{idx}")
             
             b1, b2 = st.columns([1, 4])
@@ -204,9 +195,7 @@ with tab_fmt:
         n_lab = nc2.text_input("Format Name")
         n_ext = nc3.selectbox("File Type", ["WebP", "JPEG"])
         nc4, nc5, nc6 = st.columns(3)
-        n_w = nc4.number_input("Width", 1080)
-        n_h = nc5.number_input("Height", 1080)
-        n_q = nc6.slider("Quality", 10, 100, 85)
+        n_w = nc4.number_input("Width", 1080); n_h = nc5.number_input("Height", 1080); n_q = nc6.slider("Quality", 10, 100, 85)
         if st.form_submit_button("ADD TO SYSTEM"):
             st.session_state.specs.append({"category": n_cat, "label": n_lab, "width": int(n_w), "height": int(n_h), "ratio": calculate_ratio(int(n_w), int(n_h)), "ext": n_ext, "quality": n_q})
             save_specs_to_disk(); st.rerun()

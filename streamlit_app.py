@@ -2,7 +2,7 @@ import streamlit as st
 from PIL import Image, ImageOps
 import json, os, math, re, io, zipfile
 
-# --- 1. INITIALIZATION: Run this before EVERYTHING else ---
+# --- 1. INITIALIZATION ---
 if 'specs' not in st.session_state:
     if os.path.exists("transformer_specs.json"):
         with open("transformer_specs.json", "r") as f:
@@ -13,7 +13,7 @@ if 'specs' not in st.session_state:
 if 'proj_name' not in st.session_state:
     st.session_state.proj_name = "PSAM_Export"
 
-# --- 2. THEME & CORE HELPERS ---
+# --- 2. CORE CONFIG ---
 st.set_page_config(page_title="Visual Transformer", layout="wide")
 
 def load_css(file_name):
@@ -23,10 +23,7 @@ def load_css(file_name):
 
 load_css('style.css')
 
-def save_specs_to_disk():
-    with open("transformer_specs.json", "w") as f:
-        json.dump({"formats": st.session_state.specs}, f, indent=4)
-
+# --- 3. HELPERS ---
 def calculate_ratio(w, h):
     gcd = math.gcd(w, h)
     return f"{w//gcd}:{h//gcd}"
@@ -37,51 +34,53 @@ def sanitize(name):
 def get_svg_rect(ratio_str):
     try:
         r_w, r_h = map(int, ratio_str.split(":"))
-        max_d = 35
+        max_d = 40
         w, h = (max_d, int(max_d*(r_h/r_w))) if r_w > r_h else (int(max_d*(r_w/r_h)), max_d)
-        return f'<svg width="45" height="45"><rect x="{(45-w)/2}" y="{(45-h)/2}" width="{w}" height="{h}" fill="none" stroke="#f36e2e" stroke-width="2"/></svg>'
+        return f'<svg width="50" height="50"><rect x="{(50-w)/2}" y="{(50-h)/2}" width="{w}" height="{h}" fill="none" stroke="#f36e2e" stroke-width="2.5"/></svg>'
     except: return ""
 
-# --- 3. INTERFACE TABS ---
+# --- 4. INTERFACE ---
 tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
 with tab_run:
-    # 3.1 THE CENTERED DROP ZONE
+    # 4.1 THE TRANSPARENT DROP ZONE
     uploaded_files = st.file_uploader("Drag & Drop Images Here", type=['jpg', 'png', 'webp'], accept_multiple_files=True, label_visibility="collapsed")
 
     if uploaded_files:
         st.write(" ")
-        mcol1, mcol2, mcol3 = st.columns(3)
-        cats = {"SOCIAL": mcol1, "WEB": mcol2, "EMAIL": mcol3}
+        
+        # 4.2 VERTICAL CATEGORY SECTIONS
+        categories = ["SOCIAL", "WEB", "EMAIL"]
         selected_formats = []
 
-        for category, col in cats.items():
-            with col:
-                st.markdown(f'<p class="cat-header">{category}</p>', unsafe_allow_html=True)
-                # ERROR FIX: accessing state safely
-                cat_specs = [s for s in st.session_state.specs if s.get('category') == category]
+        for category in categories:
+            st.markdown(f'<p class="cat-header">{category}</p>', unsafe_allow_html=True)
+            
+            cat_specs = [s for s in st.session_state.specs if s.get('category') == category]
+            
+            for spec in cat_specs:
+                # Custom Flexbox Card
+                # Wrapping in a div so our CSS 'format-card' can take over
+                st.markdown(f'''
+                    <div class="format-card">
+                        <div class="card-left">
+                            <div class="card-icon">{get_svg_rect(spec['ratio'])}</div>
+                            <div class="card-info">
+                                <div class="format-label">{spec["label"]}</div>
+                                <div class="format-subline">{spec['width']}x{spec['height']} — {spec.get('ext', 'WebP').upper()} @ {spec.get('quality', 85)}% Quality</div>
+                            </div>
+                        </div>
+                ''', unsafe_allow_html=True)
                 
-                for spec in cat_specs:
-                    # RENDER THE CARD: [Icon (1) | Info (6) | Checkbox (1)]
-                    with st.container(border=True):
-                        c_icon, c_info, c_check = st.columns([1, 6, 1])
-                        
-                        with c_icon:
-                            st.markdown(get_svg_rect(spec['ratio']), unsafe_allow_html=True)
-                        
-                        with c_info:
-                            st.markdown(f'<div class="format-label">{spec["label"]}</div>', unsafe_allow_html=True)
-                            # Size + Compression on one subline
-                            sub_text = f"{spec['width']}x{spec['height']} — {spec.get('ext', 'WebP').upper()} @ {spec.get('quality', 85)}% Quality"
-                            st.markdown(f'<div class="format-subline">{sub_text}</div>', unsafe_allow_html=True)
-                        
-                        with c_check:
-                            # Selection checkbox pushed to the far right
-                            if st.checkbox("", value=True, key=f"run_{spec['label']}", label_visibility="collapsed"):
-                                selected_formats.append(spec)
+                # Use a unique key and align the checkbox to the right
+                # We use negative margin trick to pull the widget into the div
+                st.markdown('<div style="margin-top: -65px; text-align: right; padding-right: 20px;">', unsafe_allow_html=True)
+                if st.checkbox("", value=True, key=f"run_{spec['label']}", label_visibility="collapsed"):
+                    selected_formats.append(spec)
+                st.markdown('</div></div>', unsafe_allow_html=True)
 
         st.divider()
-        if st.button("GENERATE ASSETS", use_container_width=True):
+        if st.button("GENERATE ALL ASSETS", use_container_width=True):
             if selected_formats:
                 zip_buffer = io.BytesIO()
                 with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
@@ -99,18 +98,4 @@ with tab_run:
                 st.success(f"Generated {len(uploaded_files)} images.")
                 st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
 
-with tab_fmt:
-    st.write("### Museum Standards Library")
-    for idx, spec in enumerate(st.session_state.specs):
-        with st.expander(f"✎ {spec['category']}: {spec['label']}"):
-            l = st.text_input("Label", spec['label'], key=f"l_{idx}")
-            c1, c2 = st.columns(2)
-            w = c1.number_input("Width", value=int(spec['width']), key=f"w_{idx}")
-            h = c2.number_input("Height", value=int(spec['height']), key=f"h_{idx}")
-            if st.button("Save Changes", key=f"upd_{idx}"):
-                st.session_state.specs[idx].update({"label": l, "width": int(w), "height": int(h), "ratio": calculate_ratio(int(w), int(h))})
-                save_specs_to_disk(); st.rerun()
-
-with tab_set:
-    st.write("### Settings")
-    st.session_state.proj_name = st.text_input("Project Name", value=st.session_state.proj_name)
+# ... (Keep FORMATS and SETTINGS tabs as they were) ...

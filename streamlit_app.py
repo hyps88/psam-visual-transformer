@@ -5,41 +5,47 @@ from datetime import datetime
 
 # --- 1. SETTINGS & THEME ---
 ACCENT_COLOR = "#f36e2e"
-st.set_page_config(page_title="PSAM Visual Transformer", page_icon="🖼️", layout="wide")
+st.set_page_config(page_title="Visual Transformer", page_icon="🖼️", layout="wide")
 
 st.markdown(f"""
     <style>
-    .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }}
+    .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0e1117; }}
     
-    /* Category Headers: Clean & Spacious */
+    /* Category Headers: Pro Spacing */
     .cat-header {{
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 800;
-        color: #666;
+        color: #555;
         letter-spacing: 3px;
-        margin-top: 60px !important;
-        margin-bottom: 20px;
+        margin-top: 80px !important;
+        margin-bottom: 25px;
         text-transform: uppercase;
-        border-bottom: 1px solid #333;
+        border-bottom: 1px solid #222;
         padding-bottom: 8px;
     }}
 
-    /* Format Card: Simple & Robust */
+    /* Format Card: Deep & Dark */
     .format-card {{
         background-color: #1a1c1e;
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 10px;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
         border: 1px solid #2b2b2b;
     }}
+    
+    .stCheckbox [data-testid="stMarkdownContainer"] p {{
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        color: white !important;
+    }}
 
-    /* PSAM Button Style */
     .stButton>button {{
         background-color: {ACCENT_COLOR};
         color: white;
         border-radius: 8px;
         border: none;
         font-weight: bold;
+        height: 3em;
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -52,13 +58,12 @@ def calculate_ratio(w, h):
 def sanitize(name):
     return re.sub(r'[^a-zA-Z0-9]', '_', name)
 
-def get_svg_rect(ratio_str):
-    """ Simple SVG rectangle indicator """
+def get_svg_rect(ratio_str, color=ACCENT_COLOR):
     try:
         r_w, r_h = map(int, ratio_str.split(":"))
-        max_d = 30
+        max_d = 35
         w, h = (max_d, int(max_d*(r_h/r_w))) if r_w > r_h else (int(max_d*(r_w/r_h)), max_d)
-        return f'<svg width="40" height="40"><rect x="{(40-w)/2}" y="{(40-h)/2}" width="{w}" height="{h}" fill="none" stroke="{ACCENT_COLOR}" stroke-width="2"/></svg>'
+        return f'<svg width="45" height="45"><rect x="{(45-w)/2}" y="{(45-h)/2}" width="{w}" height="{h}" fill="none" stroke="{color}" stroke-width="2"/></svg>'
     except: return ""
 
 # --- 3. STATE & DATA ---
@@ -75,23 +80,22 @@ uploaded_files = st.sidebar.file_uploader("BATCH IMPORT", type=['jpg', 'png', 'w
 project_name = st.sidebar.text_input("PROJECT NAME", value="PSAM_Export")
 
 st.sidebar.divider()
-st.sidebar.subheader("Compression Settings")
-quality = st.sidebar.slider("QUALITY", 10, 100, 85)
-engine_choice = st.sidebar.selectbox("ENGINE", ["LANCZOS (High Quality)", "BILINEAR", "BICUBIC"])
-engine = Image.Resampling.LANCZOS if "LANCZOS" in engine_choice else Image.Resampling.BILINEAR
+st.sidebar.subheader("Global Override")
+use_global = st.sidebar.toggle("Enable Global Compression", value=False, help="When ON, ignores individual format settings.")
+
+# Global Controls (Only active if toggle is ON)
+g_quality = st.sidebar.slider("GLOBAL QUALITY", 10, 100, 85, disabled=not use_global)
+g_engine_label = st.sidebar.selectbox("GLOBAL ENGINE", ["LANCZOS (High Quality)", "BILINEAR", "BICUBIC"], disabled=not use_global)
+g_engine = Image.Resampling.LANCZOS if "LANCZOS" in g_engine_label else Image.Resampling.BILINEAR
 
 # --- 5. MAIN UI ---
-tab_run, tab_lib = st.tabs(["TRANSFORMER", "LIBRARY"])
+tab_run, tab_lib = st.tabs(["TRANSFORMER", "LIBRARY MANAGEMENT"])
 
 with tab_run:
     if not uploaded_files:
-        st.info("Upload images in the sidebar to get started.")
+        st.info("Import master images in the sidebar to visualize assets.")
     else:
-        # Selection Tools
-        col_a, col_b, _ = st.columns([1, 1, 5])
-        # Note: Select All logic is simplified for stability
-        
-        st.write("### Target Formats")
+        st.write("### Select Target Formats")
         
         mcol1, mcol2, mcol3 = st.columns(3)
         cats = {"SOCIAL": mcol1, "WEB": mcol2, "EMAIL": mcol3}
@@ -100,23 +104,27 @@ with tab_run:
         for category, col in cats.items():
             with col:
                 st.markdown(f'<p class="cat-header">{category}</p>', unsafe_allow_html=True)
-                cat_specs = [s for s in st.session_state.specs if s['category'] == category]
+                cat_specs = [s for idx, s in enumerate(st.session_state.specs) if s['category'] == category]
                 
                 for spec in cat_specs:
-                    # Fusing Icon and Text into the Checkbox Label
-                    icon = get_svg_rect(spec['ratio'])
-                    label = f"{spec['label']} ({spec['width']}x{spec['height']})"
+                    # Individual Setting Display
+                    q_val = g_quality if use_global else spec.get('quality', 80)
+                    ext_val = spec.get('ext', 'WebP')
                     
-                    # Layout: Icon on left, Checkbox on right
-                    c_icon, c_check = st.columns([1, 4])
-                    with c_icon:
-                        st.markdown(icon, unsafe_allow_html=True)
-                    with c_check:
-                        if st.checkbox(label, value=True, key=f"check_{spec['label']}"):
-                            selected_formats.append(spec)
+                    with st.container():
+                        st.markdown('<div class="format-card">', unsafe_allow_html=True)
+                        c_icon, c_check = st.columns([1, 4])
+                        with c_icon:
+                            st.markdown(get_svg_rect(spec['ratio']), unsafe_allow_html=True)
+                        with c_check:
+                            check_label = f"{spec['label']} ({spec['width']}x{spec['height']})"
+                            if st.checkbox(check_label, value=True, key=f"run_{spec['label']}"):
+                                selected_formats.append(spec)
+                            st.markdown(f'<span style="color: #666; font-size: 11px;">SETTING: {ext_val.upper()} @ {q_val}% Quality</span>', unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
 
         st.divider()
-        if st.button("🚀 GENERATE ALL ASSETS", use_container_width=True):
+        if st.button("🚀 GENERATE ALL BATCH ASSETS", use_container_width=True):
             if not selected_formats:
                 st.warning("Please select at least one format.")
             else:
@@ -127,51 +135,60 @@ with tab_run:
                         base_n = sanitize(os.path.splitext(up_file.name)[0])
                         
                         for spec in selected_formats:
-                            res = ImageOps.fit(img, (spec['width'], spec['height']), engine)
-                            f_ext = spec['ext'].lower()
-                            f_name = f"PSAM_{sanitize(spec['label'])}.{f_ext}"
+                            # LOGIC: Override or Individual?
+                            final_q = g_quality if use_global else spec.get('quality', 80)
+                            final_ext = spec.get('ext', 'WebP').upper()
+                            
+                            res = ImageOps.fit(img, (spec['width'], spec['height']), g_engine)
+                            f_name = f"PSAM_{sanitize(spec['label'])}.{final_ext.lower()}"
                             
                             img_io = io.BytesIO()
-                            res.save(img_io, format=spec['ext'].upper(), quality=quality)
+                            res.save(img_io, format=final_ext, quality=final_q)
                             zip_file.writestr(f"{base_n}/{f_name}", img_io.getvalue())
                 
-                st.success(f"Processed {len(uploaded_files)} images!")
-                st.download_button(
-                    "📂 DOWNLOAD ZIP ARCHIVE",
-                    data=zip_buffer.getvalue(),
-                    file_name=f"{sanitize(project_name)}.zip",
-                    mime="application/zip"
-                )
+                st.success(f"Batch Complete: {len(uploaded_files)} images processed.")
+                st.download_button("📂 DOWNLOAD ZIP ARCHIVE", data=zip_buffer.getvalue(), 
+                                   file_name=f"{sanitize(project_name)}.zip", mime="application/zip")
 
 with tab_lib:
-    st.write("### Manage Museum Standards")
+    st.write("### Museum Standards Library")
+    st.caption("Edit individual format 'DNA' here. These values are used when Global Override is OFF.")
+    
     for idx, spec in enumerate(st.session_state.specs):
-        with st.expander(f"{spec['category']}: {spec['label']}"):
+        with st.expander(f"✎ {spec['category']}: {spec['label']}"):
             c1, c2, c3 = st.columns(3)
-            l = c1.text_input("Label", spec['label'], key=f"l_{idx}")
-            w = c2.number_input("Width", value=int(spec['width']), key=f"w_{idx}")
-            h = c3.number_input("Height", value=int(spec['height']), key=f"h_{idx}")
+            l = c1.text_input("Label", spec['label'], key=f"edit_l_{idx}")
+            w = c2.number_input("Width", value=int(spec['width']), key=f"edit_w_{idx}")
+            h = c3.number_input("Height", value=int(spec['height']), key=f"edit_h_{idx}")
             
-            if st.button("Update", key=f"upd_{idx}"):
-                st.session_state.specs[idx].update({"label": l, "width": int(w), "height": int(h), "ratio": calculate_ratio(int(w), int(h))})
+            c4, c5 = st.columns(2)
+            e = c4.selectbox("Default Format", ["WebP", "JPEG"], index=0 if spec.get('ext', 'WebP') == "WebP" else 1, key=f"edit_e_{idx}")
+            q = c5.slider("Default Quality", 10, 100, spec.get('quality', 80), key=f"edit_q_{idx}")
+            
+            if st.button("Save Changes", key=f"upd_{idx}"):
+                st.session_state.specs[idx].update({
+                    "label": l, "width": int(w), "height": int(h), 
+                    "ext": e, "quality": q, "ratio": calculate_ratio(int(w), int(h))
+                })
                 st.rerun()
-            if st.button("Delete", key=f"del_{idx}"):
+            if st.button("Remove Format", key=f"del_{idx}", type="secondary"):
                 st.session_state.specs.pop(idx)
                 st.rerun()
     
     st.divider()
-    st.write("### Add New Format")
-    with st.form("new_fmt"):
+    with st.form("new_standard"):
+        st.write("#### Add New Permanent Format")
         nc1, nc2, nc3 = st.columns(3)
-        cat = nc1.selectbox("Category", ["SOCIAL", "WEB", "EMAIL"])
-        lab = nc2.text_input("Label (e.g. Instagram Square)")
-        ext = nc3.selectbox("Format", ["JPEG", "WebP"])
-        nc4, nc5 = st.columns(2)
-        wid = nc4.number_input("Width", 1080)
-        hei = nc5.number_input("Height", 1080)
-        if st.form_submit_button("ADD TO LIBRARY"):
+        n_cat = nc1.selectbox("Category", ["SOCIAL", "WEB", "EMAIL"])
+        n_lab = nc2.text_input("Format Name")
+        n_ext = nc3.selectbox("File Type", ["WebP", "JPEG"])
+        nc4, nc5, nc6 = st.columns(3)
+        n_w = nc4.number_input("Width", 1080)
+        n_h = nc5.number_input("Height", 1080)
+        n_q = nc6.slider("Quality", 10, 100, 85)
+        if st.form_submit_button("ADD TO SYSTEM"):
             st.session_state.specs.append({
-                "category": cat, "label": lab, "width": int(wid), "height": int(hei),
-                "ratio": calculate_ratio(int(wid), int(hei)), "ext": ext, "quality": 85
+                "category": n_cat, "label": n_lab, "width": int(n_w), "height": int(n_h),
+                "ratio": calculate_ratio(int(n_w), int(n_h)), "ext": n_ext, "quality": n_q
             })
             st.rerun()

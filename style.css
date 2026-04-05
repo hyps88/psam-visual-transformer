@@ -4,40 +4,47 @@
     background-color: #0e1117;
 }
 
-/* --- RESTORED: PERFECT DROP ZONE --- */
+/* --- THE PERFECT DROP ZONE (Locked) --- */
 [data-testid="stFileUploader"] {
-    background-color: transparent !important; /* No background */
+    background-color: transparent !important;
     padding: 60px 20px !important;
     border-radius: 20px !important;
     border: 2px dashed #333 !important;
 }
-
-[data-testid="stFileUploader"]:hover { border-color: #f36e2e !important; }
-
-/* The 58px Title */
 [data-testid="stFileUploaderDropzoneInstructions"] div {
     font-size: 58px !important;
     font-weight: 700 !important;
     color: #eee !important;
     text-align: center !important;
-    line-height: 1.1 !important;
 }
-
-/* Force centering of all internal elements */
 [data-testid="stFileUploader"] section {
     background-color: transparent !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
-    justify-content: center !important;
 }
 
-/* Hide small metadata to keep it museum-clean */
-[data-testid="stFileUploaderDropzoneInstructions"] small {
-    display: none !important;
+/* --- SECTION HEADERS WITH TOGGLES --- */
+.header-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-top: 50px !important;
+    margin-bottom: 25px !important;
+    border-bottom: 1px solid #222;
+    padding-bottom: 10px;
 }
 
-/* --- 2-COLUMN CARD GRID --- */
+.cat-header-text {
+    font-size: 11px;
+    font-weight: 800;
+    color: #444;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin: 0 !important;
+}
+
+/* --- THE 2-COLUMN CARDS --- */
 [data-testid="stVerticalBlockBorderWrapper"] {
     background-color: #1a1c1e !important;
     border-radius: 12px !important;
@@ -46,31 +53,9 @@
     margin-bottom: 10px;
 }
 
-.card-label {
-    font-size: 16px !important;
-    font-weight: 700 !important;
-    color: white !important;
-}
+.card-label { font-size: 16px !important; font-weight: 700 !important; color: white !important; }
+.card-subline { font-size: 13px !important; color: #888 !important; margin-top: 4px; }
 
-.card-subline {
-    font-size: 13px !important;
-    color: #888 !important;
-    margin-top: 4px;
-}
-
-/* Category Headers */
-.cat-header {
-    font-size: 11px;
-    font-weight: 800;
-    color: #444;
-    letter-spacing: 3px;
-    margin-top: 50px !important;
-    margin-bottom: 25px !important;
-    text-transform: uppercase;
-    border-bottom: 1px solid #222;
-    padding-bottom: 8px;
-}
-
-/* Tabs & Buttons */
+/* Global UI */
 .stTabs [aria-selected="true"] { color: #f36e2e !important; border-bottom: 2px solid #f36e2e !important; }
-.stButton>button { background-color: #f36e2e; color: white; border-radius: 8px; font-weight: bold; height: 3.5em; }
+.stButton>button { background-color: #f36e2e; color: white; border-radius: 8px; font-weight: bold; }

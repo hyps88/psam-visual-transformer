@@ -18,7 +18,7 @@
 }
 
 
-[data-testid="stFileUploaderDropzoneInstructions"] div {
+[data-testid="stFileUploaderDropzone"] div {
     background-color: transparent !important;
 }
 

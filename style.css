@@ -17,6 +17,15 @@
     background-color: transparent !important;
 }
 
+
+[data-testid="stFileUploaderDropzoneInstructions"] div {
+    background-color: transparent !important;
+}
+
+
+
+
+
 /* --- THE CUSTOM SETTINGS FLEXBOX ENGINE --- */
 /* The expander inside the 'Custom Settings' container */
 [data-testid="stExpander"] div[role="region"] > div {

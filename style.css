@@ -12,35 +12,30 @@
     border: 2px dashed #333 !important;
 }
 [data-testid="stFileUploaderDropzoneInstructions"] div {
-    font-size: 58px !important; font-weight: 700 !important;
-    color: #eee !important; text-align: center !important;
+    font-size: 58px !important;
+    font-weight: 700 !important;
+    color: #eee !important;
+    text-align: center !important;
 }
 
-/* --- THE CUSTOM SETTINGS FLEXBOX ENGINE --- */
-/* The expander inside the 'Custom Settings' container */
-[data-testid="stExpander"] div[role="region"] > div {
+/* --- PREVIEW LAYOUT ENGINE --- */
+.preview-container {
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: wrap !important;
-    gap: 30px !important; /* Adding padding between image and controls */
-    justify-content: flex-start !important;
+    gap: 40px !important; /* Added Padding */
     align-items: flex-start !important;
+    margin-top: 20px;
 }
 
-/* The Image Container (Column 1) */
-.preview-image-box {
-    flex: 1 1 500px !important; /* Minimum width of 500px before wrapping */
-    max-width: 500px !important; /* Never exceeds 500px wide */
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
+.preview-image-wrapper {
+    flex: 0 0 auto !important;
+    max-width: 500px !important;
 }
 
-/* The Controls Container (Column 2) */
-.preview-controls-box {
-    flex: 1 1 250px !important; /* Minimum width of 250px */
-    max-width: 350px !important; /* Standardized control panel width */
-    margin-top: 10px;
+.preview-controls-wrapper {
+    flex: 1 1 300px !important;
+    max-width: 400px !important;
 }
 
 /* --- FORMAT CARDS (LOCKED) --- */

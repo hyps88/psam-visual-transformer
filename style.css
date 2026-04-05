@@ -11,11 +11,7 @@
     border-radius: 20px !important;
     border: 3px dashed #333 !important;
 }
-[data-testid="stFileUploaderDropzoneInstructions"] div {
-    font-size: 58px !important; font-weight: 700 !important;
-    color: #eee !important; text-align: center !important;
-    background-color: transparent !important;
-}
+
 
 
 [data-testid="stFileUploaderDropzone"] div {

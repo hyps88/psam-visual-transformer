@@ -1,82 +1,22 @@
 import streamlit as st
 from PIL import Image, ImageOps
 import json, os, math, re, io, zipfile
-from datetime import datetime
 
-# --- 1. SETTINGS & THEME ---
-ACCENT_COLOR = "#f36e2e"
+# --- 1. CORE CONFIG ---
 st.set_page_config(page_title="Visual Transformer", layout="wide")
 
+def load_css(file_name):
+    """ Loads the external stylesheet """
+    if os.path.exists(file_name):
+        with open(file_name) as f:
+            st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+
+load_css('style.css')
+
 def save_specs_to_disk():
-    """ Keeps your museum standards persistent """
+    """ Keeps museum standards persistent in JSON """
     with open("transformer_specs.json", "w") as f:
         json.dump({"formats": st.session_state.specs}, f, indent=4)
-
-# --- CALLBACKS: Safe state management ---
-def on_master_all():
-    if st.session_state.master_all:
-        for s in st.session_state.specs: st.session_state[f"run_{s['label']}"] = True
-        st.session_state.master_none = False
-
-def on_master_none():
-    if st.session_state.master_none:
-        for s in st.session_state.specs: st.session_state[f"run_{s['label']}"] = False
-        st.session_state.master_all = False
-
-st.markdown(f"""
-    <style>
-    .stApp {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #0e1117; }}
-    
-    .cat-header {{
-        font-size: 11px;
-        font-weight: 800;
-        color: #444;
-        letter-spacing: 3px;
-        margin-top: 40px !important; 
-        margin-bottom: 25px !important;
-        text-transform: uppercase;
-    }}
-
-    /* DROP ZONE: Simplified & Functional */
-    [data-testid="stFileUploader"] {{
-        background-color: #16181a !important;
-        padding: 30px 20px !important;
-        border-radius: 15px !important;
-        border: 2px dashed #333 !important;
-    }}
-    [data-testid="stFileUploader"]:hover {{ border-color: {ACCENT_COLOR} !important; }}
-    
-    [data-testid="stFileUploader"] label {{
-        display: block !important;
-        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
-        font-size: 24px !important;
-        font-weight: 700 !important;
-        color: #eee !important;
-        text-align: center !important;
-        margin-bottom: 15px !important;
-        width: 100% !important;
-    }}
-
-    /* RECTIFY VISIBILITY: Ensure Browse/Files stay visible */
-    [data-testid="stFileUploader"] section {{ background: transparent !important; }}
-    [data-testid="stFileUploaderDropzoneInstructions"] {{ display: none !important; }}
-    
-    /* MASTER CHECKBOXES: Card style for selection tools */
-    .master-card {{
-        background-color: #1a1c1e;
-        padding: 10px 20px;
-        border-radius: 10px;
-        border: 1px solid #333;
-        margin-bottom: 10px;
-    }}
-
-    .stTabs [data-baseweb="tab-list"] {{ gap: 40px; border-bottom: 1px solid #222; margin-bottom: 30px; }}
-    .stTabs [data-baseweb="tab"] {{ height: 50px; background-color: transparent !important; color: #555 !important; font-weight: 700; }}
-    .stTabs [aria-selected="true"] {{ color: {ACCENT_COLOR} !important; border-bottom: 2px solid {ACCENT_COLOR} !important; }}
-    
-    .stButton>button {{ background-color: {ACCENT_COLOR}; color: white; border-radius: 8px; font-weight: bold; height: 3.5em; }}
-    </style>
-""", unsafe_allow_html=True)
 
 # --- 2. HELPERS ---
 def calculate_ratio(w, h):
@@ -86,15 +26,16 @@ def calculate_ratio(w, h):
 def sanitize(name):
     return re.sub(r'[^a-zA-Z0-9]', '_', name)
 
-def get_svg_rect(ratio_str, color=ACCENT_COLOR):
+def get_svg_rect(ratio_str):
+    """ Simple visual ratio indicator """
     try:
         r_w, r_h = map(int, ratio_str.split(":"))
         max_d = 35
         w, h = (max_d, int(max_d*(r_h/r_w))) if r_w > r_h else (int(max_d*(r_w/r_h)), max_d)
-        return f'<svg width="45" height="45"><rect x="{(45-w)/2}" y="{(45-h)/2}" width="{w}" height="{h}" fill="none" stroke="{color}" stroke-width="2"/></svg>'
+        return f'<svg width="45" height="45"><rect x="{(45-w)/2}" y="{(45-h)/2}" width="{w}" height="{h}" fill="none" stroke="#f36e2e" stroke-width="2"/></svg>'
     except: return ""
 
-# --- 3. STATE ---
+# --- 3. STATE MANAGEMENT ---
 if 'specs' not in st.session_state:
     if os.path.exists("transformer_specs.json"):
         with open("transformer_specs.json", "r") as f:
@@ -104,11 +45,11 @@ if 'specs' not in st.session_state:
 if 'proj_name' not in st.session_state:
     st.session_state.proj_name = "PSAM_Export"
 
-# --- 4. NAVIGATION ---
+# --- 4. INTERFACE ---
 tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
 with tab_run:
-    # 4.1 DROP ZONE
+    # INPUT ZONE
     uploaded_files = st.file_uploader("Drag & Drop Images Here", type=['jpg', 'png', 'webp'], accept_multiple_files=True)
 
     if uploaded_files:
@@ -121,31 +62,20 @@ with tab_run:
             with col:
                 st.markdown(f'<p class="cat-header">{category}</p>', unsafe_allow_html=True)
                 cat_specs = [s for s in st.session_state.specs if s['category'] == category]
+                
                 for spec in cat_specs:
                     with st.container(border=True):
                         c_icon, c_check = st.columns([1, 4])
-                        with c_icon: st.markdown(get_svg_rect(spec['ratio']), unsafe_allow_html=True)
+                        with c_icon: 
+                            st.markdown(get_svg_rect(spec['ratio']), unsafe_allow_html=True)
                         with c_check:
-                            # Direct key mapping for safety
+                            # Selection buttons removed as requested.
                             if st.checkbox(f"{spec['label']} ({spec['width']}x{spec['height']})", value=True, key=f"run_{spec['label']}"):
                                 selected_formats.append(spec)
-                            st.markdown(f'<span style="color: #444; font-size: 10px;">{spec.get("ext", "WebP").upper()} @ {spec.get("quality", 85)}%</span>', unsafe_allow_html=True)
-
-        # 4.2 MASTER SELECTION: Checkboxes at bottom
-        st.divider()
-        st.write("### Bulk Selection")
-        sel_col1, sel_col2 = st.columns(2)
-        with sel_col1:
-            st.markdown('<div class="master-card">', unsafe_allow_html=True)
-            st.checkbox("SELECT ALL FORMATS", key="master_all", on_change=on_master_all)
-            st.markdown('</div>', unsafe_allow_html=True)
-        with sel_col2:
-            st.markdown('<div class="master-card">', unsafe_allow_html=True)
-            st.checkbox("DESELECT ALL FORMATS", key="master_none", on_change=on_master_none)
-            st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown(f'<span style="color: #444; font-size: 10px;">{spec.get("ext", "WebP").upper()} @ {spec.get("quality", 85)}% Quality</span>', unsafe_allow_html=True)
 
         st.divider()
-        if st.button("GENERATE ALL ASSETS", use_container_width=True):
+        if st.button("GENERATE ASSETS", use_container_width=True):
             if selected_formats:
                 zip_buffer = io.BytesIO()
                 with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
@@ -153,9 +83,11 @@ with tab_run:
                         img = Image.open(up_file).convert("RGB")
                         base_n = sanitize(os.path.splitext(up_file.name)[0])
                         for spec in selected_formats:
+                            # Locked to High-Quality Lanczos
                             res = ImageOps.fit(img, (spec['width'], spec['height']), Image.Resampling.LANCZOS)
                             f_ext = spec.get('ext', 'WebP').upper()
                             f_name = f"PSAM_{sanitize(spec['label'])}.{f_ext.lower()}"
+                            
                             img_io = io.BytesIO()
                             res.save(img_io, format=f_ext, quality=spec.get('quality', 85))
                             zip_file.writestr(f"{base_n}/{f_name}", img_io.getvalue())
@@ -164,7 +96,7 @@ with tab_run:
                 st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
 
 with tab_fmt:
-    st.write("### Permanent Museum Standards")
+    st.write("### Museum Standards Library")
     for idx, spec in enumerate(st.session_state.specs):
         with st.expander(f"{spec['category']}: {spec['label']}"):
             l = st.text_input("Label", spec['label'], key=f"edit_l_{idx}")
@@ -176,15 +108,15 @@ with tab_fmt:
             q = c4.slider("Quality", 10, 100, spec.get('quality', 85), key=f"edit_q_{idx}")
             
             b1, b2 = st.columns([1, 4])
-            if b1.button("Save", key=f"upd_{idx}"):
+            if b1.button("Save Changes", key=f"upd_{idx}"):
                 st.session_state.specs[idx].update({"label": l, "width": int(w), "height": int(h), "ext": e, "quality": q, "ratio": calculate_ratio(int(w), int(h))})
                 save_specs_to_disk(); st.rerun()
-            if b2.button("Remove", key=f"del_{idx}"):
+            if b2.button("Remove Format", key=f"del_{idx}"):
                 st.session_state.specs.pop(idx); save_specs_to_disk(); st.rerun()
     
     st.divider()
     with st.form("new_standard"):
-        st.write("#### Add New Standard")
+        st.write("#### Add New Permanent Format")
         nc1, nc2, nc3 = st.columns(3)
         n_cat = nc1.selectbox("Category", ["SOCIAL", "WEB", "EMAIL"])
         n_lab = nc2.text_input("Format Name")
@@ -200,4 +132,4 @@ with tab_set:
     st.session_state.proj_name = st.text_input("Project Export Name", value=st.session_state.proj_name)
     st.divider()
     json_data = json.dumps({"formats": st.session_state.specs}, indent=4)
-    st.download_button(label="EXPORT LIBRARY (JSON)", data=json_data, file_name="transformer_specs_backup.json", mime="application/json")
+    st.download_button(label="BACKUP LIBRARY (JSON)", data=json_data, file_name="psam_library_backup.json", mime="application/json")

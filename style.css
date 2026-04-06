@@ -17,27 +17,27 @@ div[data-testid="stProgress"] > div > div > div > div {
 
 /* Enhanced Generate Button */
 div.stButton > button:first-child {
-    background-color: #f36e2e !important;
+    background-color: none !important;
     color: white !important;
-    height: 4em !important;
+    height: 50px !important;
     width: 100% !important;
     font-size: 24px !important;
-    font-weight: 700 !important;
-    border-radius: 12px !important;
+    font-weight: 900 !important;
+    border-radius: 8px !important;
     border: none !important;
     text-transform: uppercase !important;
-    letter-spacing: 2px !important;
+    letter-spacing: 1px !important;
     transition: all 0.3s ease !important;
 }
 
 div.stButton > button:first-child:hover {
-    background-color: #ff854a !important;
+    background-color: #13171f !important;
     transform: translateY(-2px) !important;
     box-shadow: 0 10px 20px rgba(243, 110, 46, 0.3) !important;
 }
 
 div.stBaseButton-secondary {
-    background-color: #f36e2e !important;
+    background-color: none !important;
 }
 
 /* --- DECOUPLED CHEVRON BUTTONS (INDEPENDENT) --- */
@@ -55,7 +55,7 @@ div.stBaseButton-secondary {
 }
 
 .nav-chevron-trigger button:hover {
-    color: #f36e2e !important;
+    color: #13171f !important;
     opacity: 1 !important;
     transform: scale(1.2) !important;
     background-color: transparent !important;

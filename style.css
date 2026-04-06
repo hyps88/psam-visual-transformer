@@ -25,6 +25,10 @@
     text-transform: uppercase;
 }
 
+[data-testid="stElementContainer"] small {
+height: 5px !important;
+}
+
 
 
 /* tabs color */

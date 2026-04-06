@@ -1,3 +1,7 @@
+.stAppToolbar {
+  display: none;
+}
+
 /* Global Helvetica */
 .stApp {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;

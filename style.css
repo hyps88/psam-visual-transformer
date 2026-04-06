@@ -3,19 +3,25 @@
 }
 
 
-/* Targets the bold filename text inside your markdown container */
-.stMarkdownContainer b {
-    font-size: 0.8rem !important; /* Adjust this number as needed */
-    font-weight: 500 !important;   /* Makes it slightly less chunky */
+/* 1. Target the bold text specifically inside the markdown container */
+[data-testid="stMarkdownContainer"] b {
+    font-size: 11px !important;
+    font-weight: 400 !important;
+    display: inline-block !important;
     line-height: 1.2 !important;
-    display: block;                /* Ensures it sits on its own line properly */
+    word-break: break-all !important; /* Prevents long filenames from breaking the layout */
 }
 
-/* If you want to keep the "Image 1 of 1" (the <small> tag) at its current size */
-.stMarkdownContainer small {
-    font-size: 14px !important; 
-    display: block;
-    margin-bottom: 2px;
+/* 2. Target the parent 'center' tag to ensure the 'Image 1 of 1' stays separate */
+[data-testid="stMarkdownContainer"] center {
+    line-height: 1.4 !important;
+}
+
+/* 3. If 'Image 1 of 1' is in a <small> tag, keep it at its original size */
+[data-testid="stMarkdownContainer"] small {
+    font-size: 14px !important;
+    display: block !important;
+    margin-bottom: 4px !important;
 }
 
 

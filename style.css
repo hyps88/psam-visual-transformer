@@ -74,7 +74,7 @@ div.stBaseButton-secondary {
     border: 2px dashed #333 !important;
 }
 
-[data-testid="stFileUploader"]:hover { border-color: #f36e2e !important; }
+[data-testid="stFileUploader"]:hover { border-color: rgb(255, 75, 75) !important; }
 
 [data-testid="stFileUploaderDropzoneInstructions"] div {
     font-size: 58px !important;

@@ -104,8 +104,8 @@ with tab_run:
                     
                     with pcol_ctrl:
                         st.write("**Alignment for this Image**")
-                        mx = st.slider("X-Axis", 0, 100, state["x"], key=f"x_{cur_file.name}")
-                        my = st.slider("Y-Axis", 0, 100, state["y"], key=f"y_{cur_file.name}")
+                        mx = st.slider("Left - Right", 0, 100, state["x"], key=f"x_{cur_file.name}")
+                        my = st.slider("Bottom - Top", 0, 100, state["y"], key=f"y_{cur_file.name}")
                         state["x"], state["y"] = mx, my
                         st.session_state.align_map[cur_file.name] = state
 

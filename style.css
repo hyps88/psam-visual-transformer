@@ -1,5 +1,5 @@
-.stAppToolbar {
-  display: none;
+.stAppToolbar, _terminalButton_rix23_138 {
+  display: none !important;
 }
 
 /* Global Helvetica */

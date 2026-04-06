@@ -4,14 +4,16 @@
    Last Updated: April 2026
 ================================================================ 
 */
-
-.stAppToolbar {
+[data-testid="stAppToolbar"] {
 
   display: none !important;
 
 }
 
 
+.cat-header-text {
+  width: 200px;
+}
 
 /* 1. Force the container to be a centered flexbox */
 

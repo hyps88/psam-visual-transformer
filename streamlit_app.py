@@ -150,7 +150,7 @@ with tab_run:
                                 with i_c: st.markdown(get_svg_rect(calculate_ratio(spec['width'], spec['height'])), unsafe_allow_html=True)
                                 with n_c:
                                     st.markdown(f'<div class="card-label">{spec["label"]}</div>', unsafe_allow_html=True)
-                                    st.markdown(f'<div class="card-subline">{spec["width"]}x{spec["height"]} — {spec.get("ext","WebP").upper()}</div>', unsafe_allow_html=True)
+                                    st.markdown(f'<div class="card-subline">{spec["width"]}x{spec["height"]} — {spec.get("ext","WebP").upper()} @ {spec.get("quality", 85)}%</div>', unsafe_allow_html=True)
                                 with s_c:
                                     if st.checkbox("", value=st.session_state.get(f"run_{spec['label']}", False), key=f"run_{spec['label']}", label_visibility="collapsed"):
                                         selected_formats.append(spec)

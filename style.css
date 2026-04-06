@@ -5,11 +5,15 @@
 
 /* tabs color */
 
-/* Use more specific selectors to override the internal styles */
-.main .stTabs [aria-selected="true"] {
+/* Target the selection bar specifically if it's a pseudo-element */
+.stTabs [aria-selected="true"]::after {
+    display: none !important;
+    background-color: transparent !important;
+}
+
+/* Force the text color on the active tab */
+div[data-baseweb="tab"] [aria-selected="true"] {
     color: rgb(255, 75, 75) !important;
-    border-bottom: none !important;
-    border: none !important;
 }
 
 /* Global Helvetica */

@@ -5,10 +5,10 @@
 
 /* tabs color */
 
-.stTabs [aria-selected="true"] {
+/* Use more specific selectors to override the internal styles */
+.main .stTabs [aria-selected="true"] {
     color: rgb(255, 75, 75) !important;
-    /* Explicitly kill the bottom border shown in your screenshot */
-    border-bottom: 0px none transparent !important;
+    border-bottom: none !important;
     border: none !important;
 }
 

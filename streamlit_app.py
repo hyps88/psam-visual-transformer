@@ -76,7 +76,7 @@ with tab_run:
             with st.container(border=True):
                 col_locks = st.columns(2)
                 l_ar = col_locks[0].checkbox("Lock Aspect Ratio", value=False)
-                l_sz = col_locks[1].checkbox("Set Original Size (Override)", value=False)
+                l_sz = col_locks[1].checkbox("Set Original Size", value=False)
                 
                 img_ref = Image.open(cur_file)
                 ow, oh = img_ref.size
@@ -93,9 +93,9 @@ with tab_run:
                     cust_h = c2.number_input(f"Height {'(Original)' if l_sz else ''}", value=h_val, disabled=l_sz, key="ch_in")
                 
                 cust_ext = c3.selectbox("Format", ["WebP", "JPEG"], key="ce_in")
-                cust_q = c4.slider("Export Quality (100 = Lossless)", 10, 100, 95, key="cq_in")
+                cust_q = c4.slider("Export Quality", 10, 100, 95, key="cq_in")
 
-                with st.expander("👁️ Preview & Individual Alignment", expanded=True):
+                with st.expander("Preview & Alignment", expanded=True):
                     if cur_file.name not in st.session_state.align_map:
                         st.session_state.align_map[cur_file.name] = {"x": 50, "y": 50}
                     

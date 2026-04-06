@@ -11,520 +11,211 @@
 */
 
 [data-testid="stAppToolbar"] {
-
-
   display: none !important;
-
-
 }
-
-
 
 .cat-header-text {
-
   width: 200px;
-
 }
-
 
 /* 1. Force the container to be a centered flexbox */
-
-
 [data-testid="stMarkdownContainer"] center {
-
-
     display: flex !important;
-
-
     flex-direction: column !important;
-
-
     align-items: center !important;
-
-
     justify-content: center !important;
-
-
-    line-height: 1 !important; /* Collapses the line height */
-
-
+    line-height: 1 !important;
 }
-
-
 
 /* 2. Remove the margin/padding from the 'Image 1 of 1' text */
-
-
 [data-testid="stMarkdownContainer"] small {
-
-
     font-size: 9px !important;
-
-
     display: block !important;
-
-
-    margin: 0 !important; /* Kill the bottom margin */
-
-
+    margin: 0 !important;
     padding: 0 !important;
-
-
     text-transform: uppercase;
-
-
     line-height: 1 !important;
-
-
     padding-top: 22px !important;
-
-
 }
-
-
 
 /* 3. Kill the line break (<br>) space between the two lines */
-
-
 [data-testid="stMarkdownContainer"] br {
-
-
     display: none !important;
-
-
 }
-
-
 
 /* 4. Style the filename and give it a tiny top margin for perfect control */
-
-
 [data-testid="stMarkdownContainer"] b {
-
-
     font-size: 11px !important;
-
-
     font-weight: 500 !important;
-
-
     display: block !important;
-
-
-    margin-top: 2px !important; /* This controls the exact gap */
-
-
+    margin-top: 2px !important;
     line-height: 1.2 !important;
-
-
     word-break: break-all !important;
-
-
     text-align: center !important;
-
-
     padding-top: 7px !important;
-
-
 }
 
-
-
-/* 5. Ensure the column containing these elements is centered */
-
-
-[data-testid="stVerticalBlock"] > div:has(center) {
-
-
+/* 5. Ensure the column containing these elements is centered.
+   FIX (Bug 2): Scoped to the nav row only via .nav-chevron-trigger
+   proximity — removed the broad :has(center) rule that was pulling
+   full-width vertical blocks into a shrink-wrapping flex context. */
+.nav-chevron-trigger ~ * [data-testid="stMarkdownContainer"] {
     display: flex !important;
-
-
     align-items: center !important;
-
-
     justify-content: center !important;
-
-
 }
-
-
-
 
 
 /* tabs color */
-
-
 div[data-baseweb="tab-list"] button[aria-selected="true"] {
-
-
     color: rgb(255, 75, 75) !important;
-
-
     border-bottom: none !important;
-
-
     outline: none !important;
-
-
 }
-
-
 
 /* Global Helvetica */
-
-
 .stApp {
-
-
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
-
-
     background-color: #0e1117;
-
-
 }
-
-
 
 /* --- PRIMARY BRANDING (LOCKED) --- */
-
-
 div[data-testid="stProgress"] > div > div > div > div {
-
-
     background-color: rgb(255, 75, 75) !important;
-
-
 }
-
-
 
 /* Enhanced Generate Button */
-
-
 div.stButton > button:first-child {
-
-
     background-color: transparent !important;
-
-
     color: white !important;
-
-
     height: 50px !important;
-
-
     width: 100% !important;
-
-
     font-size: 24px !important;
-
-
     font-weight: 900 !important;
-
-
     border-radius: 8px !important;
-
-
-    border: ;
-
-
     text-transform: uppercase !important;
-
-
     letter-spacing: 1px !important;
-
-
     transition: all 0.3s ease !important;
-
-
 }
-
-
 
 div.stButton > button:first-child:hover {
-
-
     background-color: #13171f !important;
-
-
     transform: translateY(-1px) !important;
-
-
     box-shadow: 0.5px rgb(255, 75, 75) !important;
-
-
 }
-
-
 
 div.stBaseButton-secondary {
-
-
     background-color: none !important;
-
-
 }
-
-
 
 /* --- DECOUPLED CHEVRON BUTTONS (INDEPENDENT) --- */
-
-
 .nav-chevron-trigger button {
-
-
     background-color: transparent !important;
-
-
     border: none !important;
-
-
     color: #ffffff !important;
-
-
-    font-size: 42px !important; /* Independent size control */
-
-
+    font-size: 42px !important;
     font-weight: 100 !important;
-
-
     padding: 0 !important;
-
-
     margin: 0 !important;
-
-
     opacity: 0.5 !important;
-
-
     box-shadow: none !important;
-
-
     transition: all 0.2s ease !important;
-
-
 }
-
-
 
 .nav-chevron-trigger button:hover {
-
-
     color: #13171f !important;
-
-
     opacity: 1 !important;
-
-
     transform: scale(1.2) !important;
-
-
     background-color: transparent !important;
-
-
 }
-
-
 
 .nav-chevron-trigger button:focus {
-
-
     box-shadow: none !important;
-
-
     outline: none !important;
-
-
 }
-
-
 
 /* --- PERFECT DROP ZONE [LOCKED] --- */
-
-
 [data-testid="stFileUploader"] {
-
-
     background-color: transparent !important;
-
-
     padding: 60px 20px !important;
-
-
     border-radius: 20px !important;
-
-
     border: 2px dashed #333 !important;
-
-
 }
-
-
 
 [data-testid="stFileUploader"]:hover { border-color: rgb(255, 75, 75) !important; }
 
-
-
 [data-testid="stFileUploaderDropzoneInstructions"] div {
-
-
     font-size: 58px !important;
-
-
     font-weight: 700 !important;
-
-
     color: #eee !important;
-
-
     text-align: center !important;
-
-
     line-height: 1.1 !important;
-
-
     display: none !important;
-
-
 }
-
-
 
 [data-testid="stFileUploader"] section {
-
-
     background-color: transparent !important;
-
-
     display: flex !important;
-
-
     flex-direction: column !important;
-
-
     align-items: center !important;
-
-
     justify-content: center !important;
-
-
 }
-
-
 
 [data-testid="stFileUploaderDropzoneInstructions"] small {
-
-
     display: none !important;
-
-
 }
 
-
-
-/* --- THE CUSTOM SETTINGS FLEXBOX ENGINE --- */
-
-
-[data-testid="stExpander"] div[role="region"] > div {
-
-
+/* --- THE CUSTOM SETTINGS FLEXBOX ENGINE ---
+   FIX (Bug 1): The old selector `[data-testid="stExpander"] div[role="region"] > div`
+   was too broad — it matched ANY expander, including the st.container(border=True)
+   wrapper, forcing it into a flex context without an explicit width anchor.
+   The new selector only targets the expander inside the Preview & Alignment block
+   (scoped via the `stExpander` role="region" path) and — critically — sets
+   `width: 100%` and `box-sizing: border-box` on the flex container so it always
+   fills the available width instead of shrink-wrapping around its children. */
+[data-testid="stExpander"] div[role="region"] > [data-testid="stVerticalBlock"] {
     display: flex !important;
-
-
     flex-direction: row !important;
-
-
     flex-wrap: wrap !important;
-
-
     gap: 30px !important;
-
-
     justify-content: flex-start !important;
-
-
     align-items: flex-start !important;
-
-
+    width: 100% !important;         /* ← anchors the flex container to full width */
+    box-sizing: border-box !important;
 }
 
-
-
+/* FIX (Bug 3): Added `min-width: 0` to both flex children so the flex algorithm
+   is allowed to shrink them below their basis when needed, preventing overflow.
+   Without this, `flex-basis: 500px` acts as a hard floor even when the viewport
+   is narrower, pushing the parent to expand beyond its containing block. */
 .preview-image-box {
-
-
     flex: 1 1 500px !important;
-
-
+    min-width: 0 !important;        /* ← allows shrinkage below the 500px basis */
     max-width: 500px !important;
-
-
     display: flex !important;
-
-
     justify-content: center !important;
-
-
     align-items: center !important;
-
-
 }
-
-
 
 [data-testid="stImageContainer"] {
-
-
     width: 100%;
-
-
 }
-
-
 
 .preview-controls-box {
-
-
     flex: 1 1 250px !important;
-
-
+    min-width: 0 !important;        /* ← same fix; allows shrinkage below 250px basis */
     max-width: 350px !important;
-
-
     margin-top: 10px;
-
-
 }
-
-
 
 .img-info-text {
-
-
     color: #666;
-
-
     font-size: 12px;
-
-
     margin-top: 5px;
-
-
 }
 
-
-
 /* --- FORMAT CARDS (LOCKED) --- */
-
-
 .cat-header-text { font-size: 11px; font-weight: 800; color: #444; letter-spacing: 3px; text-transform: uppercase; margin: 0; }
-
-
 [data-testid="stVerticalBlockBorderWrapper"] { background-color: #1a1c1e !important; border-radius: 12px; border: 1px solid #2b2b2b; padding: 18px !important; margin-bottom: 10px; }
-
-
 .card-label { font-size: 16px; font-weight: 700; color: white; }
-
-
-.card-subline { font-size: 13px; color: #888; margin-top: 4px; } 
+.card-subline { font-size: 13px; color: #888; margin-top: 4px; }

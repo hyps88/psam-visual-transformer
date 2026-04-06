@@ -3,6 +3,23 @@
 }
 
 
+/* Targets the bold filename text inside your markdown container */
+.stMarkdownContainer b {
+    font-size: 0.8rem !important; /* Adjust this number as needed */
+    font-weight: 500 !important;   /* Makes it slightly less chunky */
+    line-height: 1.2 !important;
+    display: block;                /* Ensures it sits on its own line properly */
+}
+
+/* If you want to keep the "Image 1 of 1" (the <small> tag) at its current size */
+.stMarkdownContainer small {
+    font-size: 14px !important; 
+    display: block;
+    margin-bottom: 2px;
+}
+
+
+
 /* tabs color */
 div[data-baseweb="tab-list"] button[aria-selected="true"] {
     color: rgb(255, 75, 75) !important;

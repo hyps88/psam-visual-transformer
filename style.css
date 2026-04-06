@@ -12,7 +12,7 @@
 
 /* --- PRIMARY BRANDING (LOCKED) --- */
 div[data-testid="stProgress"] > div > div > div > div {
-    background-color: #f36e2e !important;
+    background-color: rgb(255, 75, 75) !important;
 }
 
 /* Enhanced Generate Button */

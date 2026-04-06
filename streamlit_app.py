@@ -80,17 +80,35 @@ with tab_run:
                 
                 img_ref = Image.open(cur_file)
                 ow, oh = img_ref.size
-                
+
+                # FIX: When "Set Original Size" is active, forcibly write the
+                # true pixel dimensions into the session state keys BEFORE the
+                # number_input widgets are rendered. Streamlit ignores `value=`
+                # when a key already exists in session state, so without this
+                # step the inputs would keep showing whatever value was last
+                # typed rather than the actual uploaded image dimensions.
+                if l_sz:
+                    st.session_state["cw_in"] = ow
+                    st.session_state["ch_in"] = oh
+
                 c1, c2, c3, c4 = st.columns([2, 2, 2, 3])
-                w_val = ow if l_sz else 1080
-                cust_w = c1.number_input(f"Width {'(Original)' if l_sz else ''}", value=w_val, disabled=l_sz, key="cw_in")
+                cust_w = c1.number_input(
+                    f"Width {'(Original)' if l_sz else ''}",
+                    value=ow if l_sz else st.session_state.get("cw_in", 1080),
+                    disabled=l_sz,
+                    key="cw_in"
+                )
                 
                 if l_ar:
                     cust_h = int(cust_w * (oh / ow))
                     c2.number_input("Height (Locked)", value=cust_h, disabled=True)
                 else:
-                    h_val = oh if l_sz else 1080
-                    cust_h = c2.number_input(f"Height {'(Original)' if l_sz else ''}", value=h_val, disabled=l_sz, key="ch_in")
+                    cust_h = c2.number_input(
+                        f"Height {'(Original)' if l_sz else ''}",
+                        value=oh if l_sz else st.session_state.get("ch_in", 1080),
+                        disabled=l_sz,
+                        key="ch_in"
+                    )
                 
                 cust_ext = c3.selectbox("Format", ["WebP", "JPEG"], key="ce_in")
                 cust_q = c4.slider("Export Quality", 10, 100, 95, key="cq_in")

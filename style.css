@@ -1,10 +1,8 @@
-.stAppToolbar, ._terminalButton_rix23_138, .manage-app-button {
+.stAppToolbar {
   display: none !important;
 }
 
-._terminalButton_rix23_138 {
-  display: none !important;
-}
+
 
 /* Global Helvetica */
 .stApp {
@@ -84,6 +82,7 @@ div.stBaseButton-secondary {
     color: #eee !important;
     text-align: center !important;
     line-height: 1.1 !important;
+    display: none !important;
 }
 
 [data-testid="stFileUploader"] section {

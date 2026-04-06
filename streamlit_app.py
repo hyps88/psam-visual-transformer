@@ -27,17 +27,24 @@ st.markdown("""
         border-color: #f36e2e !important;
         color: #f36e2e;
     }
-    /* Fixed Height Preview Container */
-    .preview-box {
+    /* STABLE VIEWPORT: Forces the preview to stay in a 500px box */
+    .viewport-container {
         height: 500px;
-        background-color: #1a1a1a;
+        width: 100%;
+        background-color: #0e1117;
+        border: 1px solid #333;
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 8px;
-        border: 1px solid #333;
         overflow: hidden;
         margin-bottom: 20px;
+    }
+    /* Ensure the Streamlit image stays contained */
+    .viewport-container img {
+        max-height: 500px !important;
+        max-width: 100% !important;
+        object-fit: contain;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -86,24 +93,23 @@ with tab_run:
         except:
             img_ref = Image.new('RGB', (100, 100), color='gray')
 
-        # --- DYNAMIC PREVIEW BOX ---
+        # --- THE FIXED VIEWPORT ---
         if cur_file.name not in st.session_state.align_map: st.session_state.align_map[cur_file.name] = {"x":50, "y":50}
         al = st.session_state.align_map[cur_file.name]
         
-        # Apply current grading for the live look
         graded_img = apply_grading(img_ref, st.session_state.ai_grade.get(cur_file.name, {}))
         
-        # Calculate Aspect for Preview based on Image Settings
-        target_w, target_h = st.session_state.cust_w, st.session_state.cust_h
+        # Pull dimensions from settings (Defaults to 1080x1080)
+        tw, th = st.session_state.cust_w, st.session_state.cust_h
         
-        # Fixed-Height Viewport
-        st.markdown('<div class="preview-box">', unsafe_allow_html=True)
-        # Using ImageOps.fit ensures the preview matches the exact crop shape chosen below
-        final_preview = ImageOps.fit(graded_img, (target_w, target_h), centering=(al["x"]/100, al["y"]/100))
-        st.image(final_preview, use_container_width=False, width=None) 
+        # Anchor the container with Markdown
+        st.markdown('<div class="viewport-container">', unsafe_allow_html=True)
+        # Create the exact crop based on current settings
+        final_preview = ImageOps.fit(graded_img, (tw, th), centering=(al["x"]/100, al["y"]/100))
+        st.image(final_preview, use_container_width=False) 
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # --- NAVIGATION & ALIGNMENT OVERLAY ---
+        # --- NAV & ALIGNMENT ---
         ncol1, ncol2, ncol3 = st.columns([1, 4, 1])
         with ncol1: st.button("〈", key="b_prev", on_click=update_gallery, args=("prev", len(uploaded_files)))
         with ncol2: 
@@ -114,16 +120,15 @@ with tab_run:
 
         st.divider()
 
-        # --- REORDERED TOGGLES ---
-        # 1. IMAGE SETTINGS (Drives the Preview Aspect)
-        if st.toggle("Image Settings", value=True):
-            with st.container(border=True):
-                c1, c2, c3, c4 = st.columns(4)
-                st.session_state.cust_w = c1.number_input("Width", value=st.session_state.cust_w)
-                st.session_state.cust_h = c2.number_input("Height", value=st.session_state.cust_h)
-                ext_type = c3.selectbox("Format", ["WebP", "JPEG"])
-                quality = c4.slider("Quality", 10, 100, 95)
-                st.session_state.cust_format = {"label":"Custom","width":st.session_state.cust_w,"height":st.session_state.cust_h,"ext":ext_type,"quality":quality}
+        # --- TOGGLES ---
+        # 1. IMAGE SETTINGS
+        with st.expander("⚙️ Image Settings", expanded=True):
+            c1, c2, c3, c4 = st.columns(4)
+            st.session_state.cust_w = c1.number_input("Width", value=st.session_state.cust_w, key="in_w")
+            st.session_state.cust_h = c2.number_input("Height", value=st.session_state.cust_h, key="in_h")
+            ext_type = c3.selectbox("Format", ["WebP", "JPEG"])
+            quality = c4.slider("Quality", 10, 100, 95)
+            st.session_state.cust_format = {"label":"Custom","width":st.session_state.cust_w,"height":st.session_state.cust_h,"ext":ext_type,"quality":quality}
 
         # 2. COLOR STUDIO
         if st.toggle("Color Studio"):
@@ -150,12 +155,11 @@ with tab_run:
 
         st.divider()
 
-        if st.button("GENERATE BATCH EXPORT", type="primary"):
+        if st.button("GENERATE BATCH EXPORT"):
             queue = selected_templates + [st.session_state.cust_format]
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED) as zf:
                 for up in uploaded_files:
-                    # Develop RAW if needed for final save
                     up_ext = os.path.splitext(up.name)[1].lower()
                     if up_ext in ['.arw','.cr2','.nef','.dng'] and rawpy:
                         with rawpy.imread(up) as r: img = Image.fromarray(r.postprocess(use_camera_wb=True))

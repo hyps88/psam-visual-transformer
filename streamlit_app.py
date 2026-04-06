@@ -14,15 +14,9 @@ if 'specs' not in st.session_state:
 if 'proj_name' not in st.session_state:
     st.session_state.proj_name = "PSAM_Export"
 
+# Persistent Navigation and Alignment
 if 'img_idx' not in st.session_state: st.session_state.img_idx = 0
 if 'align_map' not in st.session_state: st.session_state.align_map = {}
-
-# --- NEW: PERSISTENT STATE CALLBACKS ---
-def move_nav(direction, total):
-    if direction == "next":
-        st.session_state.img_idx = (st.session_state.img_idx + 1) % total
-    else:
-        st.session_state.img_idx = (st.session_state.img_idx - 1) % total
 
 # --- 2. HELPERS [LOCKED] ---
 def calculate_ratio(w, h):
@@ -55,12 +49,18 @@ def toggle_section(category_name):
         if spec.get('category') == category_name:
             st.session_state[f"run_{spec['label']}"] = master_state
 
+def update_gallery(direction, total_files):
+    if direction == "next":
+        st.session_state.img_idx = (st.session_state.img_idx + 1) % total_files
+    else:
+        st.session_state.img_idx = (st.session_state.img_idx - 1) % total_files
+
 load_css('style.css')
 
 # --- 3. INTERFACE ---
 tab_run, tab_fmt, tab_set = st.tabs(["TRANSFORMER", "FORMATS", "SETTINGS"])
 
-# --- TAB 1: TRANSFORMER [LOCKED] ---
+# --- TAB 1: TRANSFORMER ---
 with tab_run:
     uploaded_files = st.file_uploader("Drag & Drop", type=['jpg', 'png', 'webp'], accept_multiple_files=True, label_visibility="collapsed")
 
@@ -113,14 +113,13 @@ with tab_run:
                         nc1, nc2, nc3 = st.columns([1, 4, 1])
                         with nc1:
                             st.markdown('<div class="nav-chevron-trigger">', unsafe_allow_html=True)
-                            # Using Callback to preserve session state
-                            st.button("〈", key="b_prev", on_click=move_nav, args=("prev", len(uploaded_files)))
+                            st.button("〈", key="b_prev", on_click=update_gallery, args=("prev", len(uploaded_files)))
                             st.markdown('</div>', unsafe_allow_html=True)
                         with nc2:
                             st.markdown(f'<center><small>Image {st.session_state.img_idx + 1} of {len(uploaded_files)}</small><br><b>{cur_file.name}</b></center>', unsafe_allow_html=True)
                         with nc3:
                             st.markdown('<div class="nav-chevron-trigger">', unsafe_allow_html=True)
-                            st.button("〉", key="b_next", on_click=move_nav, args=("next", len(uploaded_files)))
+                            st.button("〉", key="b_next", on_click=update_gallery, args=("next", len(uploaded_files)))
                             st.markdown('</div>', unsafe_allow_html=True)
 
                     with pcol_img:
@@ -132,8 +131,7 @@ with tab_run:
             selected_formats.append({"label": "Custom", "width": cust_w, "height": cust_h, "ext": cust_ext, "quality": cust_q})
 
         st.write(" ")
-        # Using a dedicated key ensures the toggle value persists
-        show_templates = st.toggle("Templates", key="sticky_template_toggle")
+        show_templates = st.toggle("Templates", key="show_templates")
         
         if show_templates:
             cats = sorted(list(set(s.get('category', 'OTHER') for s in st.session_state.specs)))
@@ -176,14 +174,25 @@ with tab_run:
                             st_text.text(f"Processing: {bn}")
                             t_cx, t_cy = (align["x"]/100, align["y"]/100) if sp['label'] == "Custom" else (0.5, 0.5)
                             res = ImageOps.fit(img, (sp['width'], sp['height']), method=Image.Resampling.LANCZOS, centering=(t_cx, t_cy))
+                            
                             fn = f"PSAM_{bn}_{sanitize(sp['label'])}.{sp.get('ext','webp').lower()}"
                             buf = io.BytesIO()
-                            if sp.get('ext') == "JPEG": res.save(buf, format="JPEG", quality=sp.get('quality', 95), subsampling=0 if sp.get('quality')==100 else 2, optimize=True)
-                            else: res.save(buf, format="WEBP", quality=sp.get('quality', 95), lossless=(sp.get('quality')==100), method=4)
+                            
+                            # PILLOW FIX: subsampling expects 0, 1, or 2 (integers)
+                            if sp.get('ext') == "JPEG":
+                                res.save(buf, format="JPEG", quality=sp.get('quality', 95), subsampling=0 if sp.get('quality')==100 else 2, optimize=True)
+                            else:
+                                res.save(buf, format="WEBP", quality=sp.get('quality', 95), lossless=(sp.get('quality')==100), method=4)
                             zf.writestr(fn, buf.getvalue())
                 
-                st_text.text("Export Ready!")
-                st.success("Batch Generated."); st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
+                # Silent Slack notification bridge
+                try:
+                    import slack_notifier
+                    slack_notifier.send_notification("GG", st.session_state.proj_name, len(uploaded_files), selected_formats)
+                except: pass
+                
+                st_text.text("Done!")
+                st.download_button("DOWNLOAD ZIP", data=zip_buffer.getvalue(), file_name=f"{sanitize(st.session_state.proj_name)}.zip", mime="application/zip")
 
 # --- TAB 2 & 3 [LOCKED] ---
 with tab_fmt:
@@ -195,18 +204,18 @@ with tab_fmt:
                 c1, c2 = st.columns(2); w = c1.number_input("Width", value=int(spec.get('width', 1080)), key=f"ew_{idx}"); h = c2.number_input("Height", value=int(spec.get('height', 1080)), key=f"eh_{idx}")
                 c3, c4 = st.columns(2); e = c3.selectbox("Type", ["WebP", "JPEG"], index=0 if spec.get('ext')=='WebP' else 1, key=f"ee_{idx}"); q = c4.slider("Q", 10, 100, spec.get('quality', 85), key=f"eq_{idx}")
                 if st.button("Save Changes", key=f"sv_{idx}"):
-                    st.session_state.specs[idx].update({"label": l, "width": int(w), "height": int(h), "ext": e, "quality": q}); save_specs_to_disk(); st.rerun()
+                    st.session_state.specs[idx].update({"label": l, "width": int(w), "height": int(h), "ext": e, "quality": q, "ratio": calculate_ratio(int(w), int(h))}); save_specs_to_disk(); st.rerun()
                 if st.button("Remove Format", key=f"dl_{idx}"): st.session_state.specs.pop(idx); save_specs_to_disk(); st.rerun()
     st.divider()
     with st.form("new_std"):
-        st.write("#### Add New Permanent Format")
+        st.write("#### Add Format")
         n_cat = st.text_input("Category", "SOCIAL"); n_lab = st.text_input("Name"); n_ext = st.selectbox("Type", ["WebP", "JPEG"]); n_q = st.slider("Quality", 10, 100, 85); n_w = st.number_input("Width", 1080); n_h = st.number_input("Height", 1080)
-        if st.form_submit_button("ADD TO SYSTEM"):
-            st.session_state.specs.append({"category": n_cat.upper(), "label": n_lab, "width": int(n_w), "height": int(n_h), "ext": n_ext, "quality": n_q}); save_specs_to_disk(); st.rerun()
+        if st.form_submit_button("ADD"):
+            st.session_state.specs.append({"category": n_cat.upper(), "label": n_lab, "width": int(n_w), "height": int(n_h), "ratio": calculate_ratio(int(n_w), int(n_h)), "ext": n_ext, "quality": n_q}); save_specs_to_disk(); st.rerun()
 
 with tab_set:
     st.write("### Workflow Settings")
-    st.session_state.proj_name = st.text_input("Project Name", value=st.session_state.proj_name)
+    st.session_state.proj_name = st.text_input("Project Export Name", value=st.session_state.proj_name)
     st.divider()
     json_data = json.dumps({"formats": st.session_state.specs}, indent=4)
-    st.download_button("💾 EXPORT LIBRARY (JSON)", data=json_data, file_name="psam_library.json")
+    st.download_button("💾 EXPORT LIBRARY (JSON)", data=json_data, file_name="psam_library_backup.json", mime="application/json")

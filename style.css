@@ -6,8 +6,8 @@
 /* tabs color */
 
 .stTabs [aria-selected="true"] {
-  color: rgb(255, 75, 75) !important;
-  border: none !important;
+    color: rgb(255, 75, 75) !important;
+    border: none !important;
 }
 
 /* Global Helvetica */

@@ -1,16 +1,79 @@
+.stAppToolbar {
+  display: none !important;
+}
+
+
+
 /* Global Helvetica */
 .stApp {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
     background-color: #0e1117;
 }
 
-/* --- THE PERFECT DROP ZONE (Locked) --- */
+/* --- PRIMARY BRANDING (LOCKED) --- */
+div[data-testid="stProgress"] > div > div > div > div {
+    background-color: #f36e2e !important;
+}
+
+/* Enhanced Generate Button */
+div.stButton > button:first-child {
+    background-color: #f36e2e !important;
+    color: white !important;
+    height: 4em !important;
+    width: 100% !important;
+    font-size: 24px !important;
+    font-weight: 700 !important;
+    border-radius: 12px !important;
+    border: none !important;
+    text-transform: uppercase !important;
+    letter-spacing: 2px !important;
+    transition: all 0.3s ease !important;
+}
+
+div.stButton > button:first-child:hover {
+    background-color: #ff854a !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 10px 20px rgba(243, 110, 46, 0.3) !important;
+}
+
+div.stBaseButton-secondary {
+    background-color: #f36e2e !important;
+}
+
+/* --- DECOUPLED CHEVRON BUTTONS (INDEPENDENT) --- */
+.nav-chevron-trigger button {
+    background-color: transparent !important;
+    border: none !important;
+    color: #ffffff !important;
+    font-size: 42px !important; /* Independent size control */
+    font-weight: 100 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    opacity: 0.5 !important;
+    box-shadow: none !important;
+    transition: all 0.2s ease !important;
+}
+
+.nav-chevron-trigger button:hover {
+    color: #f36e2e !important;
+    opacity: 1 !important;
+    transform: scale(1.2) !important;
+    background-color: transparent !important;
+}
+
+.nav-chevron-trigger button:focus {
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* --- PERFECT DROP ZONE [LOCKED] --- */
 [data-testid="stFileUploader"] {
     background-color: transparent !important;
     padding: 60px 20px !important;
     border-radius: 20px !important;
     border: 2px dashed #333 !important;
 }
+
 [data-testid="stFileUploader"]:hover { border-color: #f36e2e !important; }
 
 [data-testid="stFileUploaderDropzoneInstructions"] div {
@@ -19,6 +82,7 @@
     color: #eee !important;
     text-align: center !important;
     line-height: 1.1 !important;
+    display: none !important;
 }
 
 [data-testid="stFileUploader"] section {
@@ -29,35 +93,47 @@
     justify-content: center !important;
 }
 
-/* --- REFINED HEADER: NO DIVIDER LINE --- */
-.cat-header-text {
-    font-size: 11px;
-    font-weight: 800;
-    color: #444;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    white-space: nowrap;
-    margin: 0 !important;
+[data-testid="stFileUploaderDropzoneInstructions"] small {
+    display: none !important;
 }
 
-/* Maintain tight alignment between title and checkbox */
-[data-testid="column"]:has(.cat-header-text) {
-    min-width: fit-content !important;
-    flex: 0 0 auto !important;
+/* --- THE CUSTOM SETTINGS FLEXBOX ENGINE --- */
+[data-testid="stExpander"] div[role="region"] > div {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 30px !important;
+    justify-content: flex-start !important;
+    align-items: flex-start !important;
 }
 
-/* --- THE 2-COLUMN CARDS --- */
-[data-testid="stVerticalBlockBorderWrapper"] {
-    background-color: #1a1c1e !important;
-    border-radius: 12px !important;
-    border: 1px solid #2b2b2b !important;
-    padding: 18px !important;
-    margin-bottom: 10px;
+.preview-image-box {
+    flex: 1 1 500px !important;
+    max-width: 500px !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
 }
 
-.card-label { font-size: 16px !important; font-weight: 700 !important; color: white !important; }
-.card-subline { font-size: 13px !important; color: #888 !important; margin-top: 4px; }
+[data-testid="stImageContainer"] {
+    width: 100%;
+}
 
-/* Tabs & Buttons */
+.preview-controls-box {
+    flex: 1 1 250px !important;
+    max-width: 350px !important;
+    margin-top: 10px;
+}
+
+.img-info-text {
+    color: #666;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* --- FORMAT CARDS (LOCKED) --- */
+.cat-header-text { font-size: 11px; font-weight: 800; color: #444; letter-spacing: 3px; text-transform: uppercase; margin: 0; }
+[data-testid="stVerticalBlockBorderWrapper"] { background-color: #1a1c1e !important; border-radius: 12px; border: 1px solid #2b2b2b; padding: 18px !important; margin-bottom: 10px; }
+.card-label { font-size: 16px; font-weight: 700; color: white; }
+.card-subline { font-size: 13px; color: #888; margin-top: 4px; }
 .stTabs [aria-selected="true"] { color: #f36e2e !important; border-bottom: 2px solid #f36e2e !important; }
-.stButton>button { background-color: #f36e2e; color: white; border-radius: 8px; font-weight: bold; height: 3.5em; }

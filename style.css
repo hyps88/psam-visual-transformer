@@ -20,6 +20,7 @@
     padding: 0 !important;
     text-transform: uppercase;
     line-height: 1 !important;
+    padding-top: 22px !important;
 }
 
 /* 3. Kill the line break (<br>) space between the two lines */
@@ -36,6 +37,7 @@
     line-height: 1.2 !important;
     word-break: break-all !important;
     text-align: center !important;
+    padding-top: 7px !important;
 }
 
 /* 5. Ensure the column containing these elements is centered */

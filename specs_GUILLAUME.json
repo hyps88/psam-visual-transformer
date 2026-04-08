@@ -1,0 +1,19 @@
+{
+    "categories": [
+        "SOCIAL",
+        "WEB",
+        "EMAIL",
+        "TEST"
+    ],
+    "formats": [
+        {
+            "category": "SOCIAL",
+            "label": "",
+            "width": 1080,
+            "height": 1080,
+            "ratio": "1:1",
+            "ext": "WebP",
+            "quality": 85
+        }
+    ]
+}

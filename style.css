@@ -1,0 +1,234 @@
+/* ================================================================
+
+   STREAMLIT CUSTOM UI - VISUAL TRANSFORMER
+
+   Made by Guillaume Goureau
+
+   Last Updated: April 2026
+
+================================================================
+
+*/
+
+[data-testid="stAppToolbar"] {
+  display: none !important;
+}
+
+.cat-header-text {
+  width: 200px;
+}
+
+/* 1. Force the container to be a centered flexbox */
+[data-testid="stMarkdownContainer"] center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+/* 2. Remove the margin/padding from the 'Image 1 of 1' text */
+[data-testid="stMarkdownContainer"] small {
+    font-size: 9px;
+    display: block;
+    margin: 0;
+    padding: 0;
+    text-transform: uppercase;
+    line-height: 1;
+    padding-top: 22px;
+}
+
+/* 3. Kill the line break (<br>) space between the two lines */
+[data-testid="stMarkdownContainer"] br {
+    display: none;
+}
+
+/* 4. Style the filename and give it a tiny top margin for perfect control */
+[data-testid="stMarkdownContainer"] b {
+    font-size: 11px;
+    font-weight: 500;
+    display: block;
+    margin-top: 2px;
+    line-height: 1.2;
+    word-break: break-all;
+    text-align: center;
+    padding-top: 7px;
+}
+
+/* 5. Ensure the column containing these elements is centered.
+   FIX (Bug 2): Scoped to the nav row only via .nav-chevron-trigger
+   proximity — removed the broad :has(center) rule that was pulling
+   full-width vertical blocks into a shrink-wrapping flex context. */
+.nav-chevron-trigger ~ * [data-testid="stMarkdownContainer"] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+/* tabs color */
+div[data-baseweb="tab-list"] button[aria-selected="true"] {
+    color: rgb(255, 75, 75) !important;
+    border-bottom: none !important;
+    outline: none !important;
+}
+
+/* Global Helvetica */
+.stApp {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background-color: #0e1117;
+}
+
+/* --- PRIMARY BRANDING (LOCKED) --- */
+div[data-testid="stProgress"] > div > div > div > div {
+    background-color: rgb(255, 75, 75) !important;
+}
+
+/* Enhanced Generate Button */
+div.stButton > button:first-child {
+    background-color: transparent !important;
+    color: white !important;
+    height: 50px !important;
+    width: 100% !important;
+    font-size: 24px !important;
+    font-weight: 900 !important;
+    border-radius: 8px !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+}
+
+div.stButton > button:first-child:hover {
+    background-color: #13171f !important;
+    transform: translateY(-1px);
+    box-shadow: 0.5px rgb(255, 75, 75) !important;
+}
+
+div.stBaseButton-secondary {
+    background-color: none !important;
+}
+
+/* --- DECOUPLED CHEVRON BUTTONS (INDEPENDENT) --- */
+.nav-chevron-trigger button {
+    background-color: transparent !important;
+    border: none !important;
+    color: #ffffff !important;
+    font-size: 42px !important;
+    font-weight: 100 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    opacity: 0.5 !important;
+    box-shadow: none !important;
+    transition: all 0.2s ease;
+}
+
+.nav-chevron-trigger button:hover {
+    color: #13171f !important;
+    opacity: 1 !important;
+    transform: scale(1.2) !important;
+    background-color: transparent !important;
+}
+
+.nav-chevron-trigger button:focus {
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* --- PERFECT DROP ZONE [LOCKED] --- */
+[data-testid="stFileUploader"] {
+    background-color: transparent !important;
+    padding: 60px 20px !important;
+    border-radius: 20px !important;
+    border: 2px dashed #333 !important;
+}
+
+[data-testid="stFileUploader"]:hover { border-color: rgb(255, 75, 75) !important; }
+
+[data-testid="stFileUploaderDropzoneInstructions"] div {
+    font-size: 58px;
+    font-weight: 700;
+    color: #eee;
+    text-align: center;
+    line-height: 1.1;
+    display: none !important;
+}
+
+[data-testid="stFileUploader"] section {
+    background-color: transparent !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+[data-testid="stFileUploaderDropzoneInstructions"] small {
+    display: none !important;
+}
+
+/* --- THE CUSTOM SETTINGS FLEXBOX ENGINE ---
+   FIX (Bug 1): High-specificity selector (0,3,1) wins over any single-class
+   Streamlit rule without needing !important. Sets width:100% and box-sizing
+   so the flex container always fills the available width. */
+[data-testid="stExpander"] div[role="region"] > [data-testid="stVerticalBlock"] {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 30px;
+    justify-content: flex-start;
+    align-items: flex-start;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* FIX (Bug 3): min-width: 0 allows the flex algorithm to shrink children
+   below their basis when needed, preventing overflow. */
+.preview-image-box {
+    flex: 1 1 500px;
+    min-width: 0;
+    max-width: 500px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+[data-testid="stImageContainer"] {
+    width: 100%;
+}
+
+.preview-controls-box {
+    flex: 1 1 250px;
+    min-width: 0;
+    max-width: 350px;
+    margin-top: 10px;
+}
+
+.img-info-text {
+    color: #666;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* --- FORMAT CARDS (LOCKED) --- */
+.cat-header-text { font-size: 11px; font-weight: 800; color: #444; letter-spacing: 3px; text-transform: uppercase; margin: 0; }
+
+/* M7a: width: 100% + box-sizing prevents the bordered Custom Settings container
+   from shrink-wrapping below full page width. Applies to format cards too, but
+   those live inside st.columns so they correctly fill their column cell. */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    width: 100%;
+    box-sizing: border-box;
+    background-color: #1a1c1e !important;
+    border-radius: 12px;
+    border: 1px solid #2b2b2b;
+    padding: 18px !important;
+    margin-bottom: 10px;
+}
+
+/* M7a: inner block must also fill the wrapper — prevents a second layer of shrink-wrap */
+[data-testid="stVerticalBlockBorderWrapper"] > [data-testid="stVerticalBlock"] {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.card-label { font-size: 16px; font-weight: 700; color: white; }
+.card-subline { font-size: 13px; color: #888; margin-top: 4px; }
